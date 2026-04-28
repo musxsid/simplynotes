@@ -1,0 +1,11 @@
+# backend
+backend/target/
+
+# frontend
+frontend/node_modules/
+
+# env
+.envgit
+
+# logs
+*.log
