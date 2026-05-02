@@ -4,6 +4,9 @@ import com.siddharth.simplynotes.entity.Note;
 import com.siddharth.simplynotes.entity.User;
 import com.siddharth.simplynotes.repository.NoteRepository;
 import com.siddharth.simplynotes.repository.UserRepository;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,4 +51,28 @@ public class NoteController {
     public void deleteNote(@PathVariable Long id) {
         noteRepository.deleteById(id);
     }
+    @PutMapping("/{id}")
+public ResponseEntity<?> updateNote(
+        @PathVariable Long id,
+        @RequestBody Note updatedNote,
+        Authentication authentication
+) {
+    String username = authentication.getName();
+
+    // Find existing note
+    Note note = noteRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Note not found"));
+
+    // Security check: ensure note belongs to user
+    if (!note.getUser().getUsername().equals(username)) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+
+    // Update content
+    note.setContent(updatedNote.getContent());
+
+    noteRepository.save(note);
+
+    return ResponseEntity.ok(note);
+}
 }

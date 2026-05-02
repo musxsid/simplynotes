@@ -44,20 +44,30 @@ public class AuthController {
 
     // 🔐 LOGIN
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+public ResponseEntity<?> login(@RequestBody AuthRequest request) {
 
-        User user = userRepository.findByUsername(request.getUsername()).orElse(null);
+    System.out.println("🔍 Login attempt for: " + request.getUsername());
 
-        if (user == null) {
-            return ResponseEntity.badRequest().body("Invalid username");
-        }
+    User user = userRepository.findByUsername(request.getUsername()).orElse(null);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest().body("Invalid password");
-        }
-
-        String token = jwtUtil.generateToken(user.getUsername());
-
-        return ResponseEntity.ok(new AuthResponse(token));
+    if (user == null) {
+        System.out.println("❌ USER NOT FOUND");
+        return ResponseEntity.badRequest().body("Invalid username");
     }
+
+    System.out.println("✔ User found in DB");
+
+    if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        System.out.println("❌ PASSWORD MISMATCH");
+        return ResponseEntity.badRequest().body("Invalid password");
+    }
+
+    System.out.println("✅ PASSWORD MATCHED");
+
+    String token = jwtUtil.generateToken(user.getUsername());
+
+    System.out.println("🔥 TOKEN GENERATED: " + token);
+
+    return ResponseEntity.ok(new AuthResponse(token));
+}
 }

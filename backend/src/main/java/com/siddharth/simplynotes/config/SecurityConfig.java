@@ -24,22 +24,21 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-            // ✅ Disable CSRF for REST APIs
             .csrf(csrf -> csrf.disable())
 
-            // ✅ Stateless session (important for JWT)
+            // ✅ ENABLE CORS
+            .cors(cors -> {})
+
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
 
-            // ✅ Authorization rules
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll() // login/register
-                .requestMatchers("/error").permitAll()       // VERY IMPORTANT FIX
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
 
-            // ✅ Add JWT filter
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
