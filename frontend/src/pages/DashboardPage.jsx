@@ -183,8 +183,10 @@ function DashboardPage() {
         <textarea
           value={newNote}
           onChange={(e) => setNewNote(e.target.value)}
-          className="w-full border rounded-lg p-2 mb-4 
-          bg-white dark:bg-gray-800 text-white"
+        className="w-full border rounded-lg p-2 mb-4 
+                  bg-white dark:bg-gray-800 
+                  text-gray-800 dark:text-white 
+                  border-gray-300 dark:border-gray-600"
           rows="4"
         />
 
@@ -198,7 +200,9 @@ function DashboardPage() {
 
       {/* DELETE MODAL */}
       <Modal isOpen={!!noteToDelete} onClose={() => setNoteToDelete(null)}>
-        <p className="mb-4">Delete this note?</p>
+      <p className="mb-4 text-lg font-medium text-gray-800 dark:text-gray-200">
+         Delete this note?
+      </p>
 
         <button
           onClick={confirmDelete}
