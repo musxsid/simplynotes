@@ -15,12 +15,10 @@ function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
 
-  // 🔥 FILTERED NOTES
   const filteredNotes = notes.filter((note) =>
     note.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 🔹 Fetch notes
   const fetchNotes = async () => {
     try {
       setLoading(true);
@@ -37,16 +35,11 @@ function DashboardPage() {
     fetchNotes();
   }, []);
 
-  // 🌙 APPLY DARK MODE
+  // 🌙 DARK MODE
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  // 💾 LOAD + SAVE THEME
   useEffect(() => {
     const saved = localStorage.getItem("theme");
     if (saved === "dark") setDarkMode(true);
@@ -56,7 +49,30 @@ function DashboardPage() {
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  // 🔹 HANDLE SAVE
+  // ⌨️ KEYBOARD SHORTCUTS
+  useEffect(() => {
+    const handler = (e) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const isNew =
+        (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === "n";
+
+      if (isNew) {
+        e.preventDefault();
+        setEditingNote(null);
+        setNewNote("");
+        setIsModalOpen(true);
+      }
+
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+        setNoteToDelete(null);
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const handleSaveNote = async () => {
     if (!newNote.trim()) return;
 
@@ -75,18 +91,15 @@ function DashboardPage() {
       fetchNotes();
     } catch (err) {
       toast.error("Something went wrong");
-      console.error(err);
     }
   };
 
-  // 🔹 HANDLE EDIT
   const handleEdit = (note) => {
     setEditingNote(note);
     setNewNote(note.content);
     setIsModalOpen(true);
   };
 
-  // 🔹 DELETE FLOW
   const handleDeleteClick = (note) => {
     setNoteToDelete(note);
   };
@@ -99,9 +112,8 @@ function DashboardPage() {
       toast.success("Note deleted");
       setNoteToDelete(null);
       fetchNotes();
-    } catch (err) {
+    } catch {
       toast.error("Delete failed");
-      console.error(err);
     }
   };
 
@@ -109,44 +121,40 @@ function DashboardPage() {
     <div className="flex">
       <Sidebar />
 
-      {/* 🔥 MAIN CONTENT */}
       <div className="ml-64 p-8 w-full bg-gray-100 dark:bg-gray-900 min-h-screen transition-colors">
 
-        {/* 🔥 HEADER */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-5 mb-8">
 
-          <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">
+          <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100">
             Your Notes
           </h2>
 
-          <div className="flex gap-3 w-full md:w-auto items-center">
+          <div className="flex gap-3 items-center">
 
-            {/* 🔍 SEARCH */}
+            {/* SEARCH */}
             <input
               type="text"
               placeholder="Search notes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full md:w-64 
+              className="border rounded-lg px-3 py-2 w-64 
               bg-white dark:bg-gray-800 
               text-gray-800 dark:text-white 
-              border-gray-300 dark:border-gray-600
-              focus:outline-none focus:ring-2 focus:ring-black transition"
+              border-gray-300 dark:border-gray-600"
             />
 
-            {/* 🌙 DARK MODE */}
+            {/* DARK MODE */}
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="px-3 py-2 rounded-lg border 
               bg-white dark:bg-gray-800 
-              text-gray-800 dark:text-white
-              border-gray-300 dark:border-gray-600 
-              transition active:scale-95"
+              text-gray-800 dark:text-white"
             >
               {darkMode ? "🌞" : "🌙"}
             </button>
 
-            {/* ➕ NEW NOTE */}
+            {/* NEW NOTE (FIXED) */}
             <button
               onClick={() => {
                 setEditingNote(null);
@@ -156,23 +164,18 @@ function DashboardPage() {
               className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition active:scale-95"
             >
               + New Note
+              <span className="ml-2 text-xs opacity-70">
+                (Ctrl/Cmd + N)
+              </span>
             </button>
 
           </div>
         </div>
 
-        {/* 🔥 LOADING / NOTES */}
+        {/* CONTENT */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {[...Array(6)].map((_, index) => (
-              <div
-                key={index}
-                className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm animate-pulse"
-              >
-                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-3"></div>
-                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
-              </div>
-            ))}
+          <div className="text-center mt-20 text-gray-400">
+            Loading notes...
           </div>
         ) : (
           <NotesGrid
@@ -184,19 +187,12 @@ function DashboardPage() {
 
         {/* CREATE / EDIT MODAL */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">
-            {editingNote ? "Edit Note" : "Create Note"}
-          </h3>
-
           <textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             className="w-full border rounded-lg p-2 mb-4 
-            bg-white dark:bg-gray-800 
-            text-gray-800 dark:text-white 
-            border-gray-300 dark:border-gray-600"
+            bg-white dark:bg-gray-800 text-white"
             rows="4"
-            placeholder="Write your note..."
           />
 
           <button
@@ -209,31 +205,14 @@ function DashboardPage() {
 
         {/* DELETE MODAL */}
         <Modal isOpen={!!noteToDelete} onClose={() => setNoteToDelete(null)}>
-          <h3 className="text-lg font-semibold mb-4 text-red-500">
-            Delete Note
-          </h3>
+          <p className="mb-4">Delete this note?</p>
 
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Are you sure you want to delete this note?
-          </p>
-
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() => setNoteToDelete(null)}
-              className="px-4 py-2 rounded-lg border 
-              border-gray-300 dark:border-gray-600
-              text-gray-800 dark:text-white"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={confirmDelete}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
-            >
-              Delete
-            </button>
-          </div>
+          <button
+            onClick={confirmDelete}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg w-full"
+          >
+            Delete
+          </button>
         </Modal>
 
       </div>
