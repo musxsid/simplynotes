@@ -1,43 +1,43 @@
 import axios from "axios";
 
-const API = "http://localhost:8080/api/notes";
+// 🔥 Base URLs
+const NOTES_API = "http://localhost:8080/api/notes";
+const AUTH_API = "http://localhost:8080/api/auth";
 
-export const getNotes = async () => {
+// 🔥 Helper to get token
+const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
-
-  return axios.get(API, {
+  return {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-  });
+  };
 };
 
-export const createNote = async (data) => {
-  const token = localStorage.getItem("token");
+// ================= NOTES =================
 
-  return axios.post(API, data, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+export const getNotes = () => {
+  return axios.get(NOTES_API, getAuthHeaders());
 };
 
-export const updateNote = async (id, data) => {
-  const token = localStorage.getItem("token");
-
-  return axios.put(`${API}/${id}`, data, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+export const createNote = (data) => {
+  return axios.post(NOTES_API, data, getAuthHeaders());
 };
 
-export const deleteNote = async (id) => {
-  const token = localStorage.getItem("token");
+export const updateNote = (id, data) => {
+  return axios.put(`${NOTES_API}/${id}`, data, getAuthHeaders());
+};
 
-  return axios.delete(`${API}/${id}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+export const deleteNote = (id) => {
+  return axios.delete(`${NOTES_API}/${id}`, getAuthHeaders());
+};
+
+// ================= AUTH =================
+
+export const login = (data) => {
+  return axios.post(`${AUTH_API}/login`, data);
+};
+
+export const signup = (data) => {
+  return axios.post(`${AUTH_API}/register`, data);
 };
