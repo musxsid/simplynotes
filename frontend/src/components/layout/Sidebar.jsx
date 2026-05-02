@@ -1,4 +1,16 @@
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 const Sidebar = () => {
+  const navigate = useNavigate();
+
+  // 🔥 Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // remove token
+    toast.success("Logged out");      // show feedback
+    navigate("/");                    // go to login
+  };
+
   return (
     <div className="h-screen w-64 fixed left-0 top-0 flex flex-col 
     bg-gray-900 dark:bg-gray-950 
@@ -32,9 +44,12 @@ const Sidebar = () => {
       </nav>
 
       {/* 🔻 Logout */}
-      <button className="flex items-center gap-3 px-3 py-2 rounded-lg 
-      text-red-400 
-      hover:bg-red-500/10 hover:text-red-300 transition">
+      <button
+        onClick={handleLogout}
+        className="flex items-center gap-3 px-3 py-2 rounded-lg 
+        text-red-400 
+        hover:bg-red-500/10 hover:text-red-300 transition"
+      >
         <span>🚪</span>
         <span className="text-sm font-medium">Logout</span>
       </button>
