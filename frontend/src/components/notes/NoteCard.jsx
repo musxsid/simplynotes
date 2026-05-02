@@ -10,7 +10,9 @@ const NoteCard = ({ note, onDelete, onEdit }) => {
       whileHover={{ y: -4, scale: 1.01, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.97 }}
       className="
-        bg-white dark:bg-gray-800 
+       backdrop-blur-xl bg-white/70 dark:bg-gray-800/70 
+border border-white/20 dark:border-gray-700
+shadow-xl
         text-gray-800 dark:text-gray-200
         rounded-2xl p-5 
         border border-gray-200 dark:border-gray-700

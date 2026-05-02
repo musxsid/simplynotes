@@ -117,7 +117,8 @@ function DashboardPage() {
   };
 
   return (
-    <div className="p-8 w-full bg-gray-100 dark:bg-gray-900 min-h-screen transition-colors">
+    <div className="p-8 w-full bg-gradient-to-br from-gray-100 to-gray-200 
+dark:from-gray-900 dark:to-black min-h-screen transition-colors">
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-5 mb-8">

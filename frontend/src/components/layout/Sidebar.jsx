@@ -13,7 +13,8 @@ const Sidebar = () => {
 
   return (
     <div className="h-screen w-64 fixed left-0 top-0 flex flex-col 
-    bg-gray-900 dark:bg-gray-950 
+   bg-gray-900/80 backdrop-blur-xl
+border-r border-gray-800 dark:bg-gray-950 
     text-gray-100 
     border-r border-gray-800 p-5">
 
