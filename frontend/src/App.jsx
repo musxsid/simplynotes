@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import WorkPage from "./pages/WorkPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
+
 function App() {
   const token = localStorage.getItem("token");
 
@@ -10,16 +12,19 @@ function App() {
     <Router>
       <Routes>
 
-        {/* 🔥 Root route logic */}
+        {/* 🔥 Landing Page */}
+        <Route path="/" element={<HomePage />} />
+
+        {/* 🔐 Login */}
         <Route
-          path="/"
+          path="/login"
           element={token ? <Navigate to="/work" /> : <LoginPage />}
         />
 
-        {/* Signup */}
+        {/* 🆕 Signup */}
         <Route path="/signup" element={<SignupPage />} />
 
-        {/* Protected Work */}
+        {/* 🔒 Protected Work */}
         <Route
           path="/work"
           element={
