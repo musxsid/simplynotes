@@ -1,25 +1,30 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import DashboardPage from "./pages/DashboardPage";
+import SignupPage from "./pages/SignupPage";
+import WorkPage from "./pages/WorkPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
-
 function App() {
+  const token = localStorage.getItem("token");
+
   return (
     <Router>
       <Routes>
 
-        {/* Public Routes */}
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-
-        {/* Protected Route */}
+        {/* 🔥 Root route logic */}
         <Route
-          path="/dashboard"
+          path="/"
+          element={token ? <Navigate to="/work" /> : <LoginPage />}
+        />
+
+        {/* Signup */}
+        <Route path="/signup" element={<SignupPage />} />
+
+        {/* Protected Work */}
+        <Route
+          path="/work"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <WorkPage />
             </ProtectedRoute>
           }
         />
