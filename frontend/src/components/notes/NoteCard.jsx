@@ -1,65 +1,76 @@
-import { motion } from "framer-motion";
-import { Pencil, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import ConfirmModal from "../ui/ConfirmModal";
 
-const NoteCard = ({ note, onDelete, onEdit }) => {
+function NoteCard({ note, onDelete }) {
+  const navigate = useNavigate();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleClick = () => {
+    if (!note?.id) return;
+    navigate(`/notes/${note.id}`);
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 220, damping: 18 }}
-      whileHover={{ y: -6, scale: 1.01 }}
-      whileTap={{ scale: 0.97 }}
-      className="
-        backdrop-blur-xl bg-white/70 dark:bg-gray-800/70
-        border border-white/20 dark:border-gray-700
-        rounded-2xl p-5
-        shadow-lg hover:shadow-xl
-        transition-all duration-200
-        text-gray-800 dark:text-gray-200
-        flex flex-col justify-between
-        min-h-[140px]
-      "
-    >
-      {/* Content */}
-      <p className="text-sm leading-relaxed line-clamp-4 mb-4">
-        {note.content}
-      </p>
+    <>
+      {/* CARD */}
+      <div
+        onClick={handleClick}
+        className="
+          group p-5 rounded-2xl cursor-pointer
+          bg-surface dark:bg-surface-dark
+          border border-border dark:border-border-dark
+          shadow-sm hover:shadow-md
+          transition-all duration-200
+          hover:-translate-y-[2px]
+        "
+      >
+        {/* TITLE */}
+        <h2 className="font-semibold text-lg mb-2 text-text-primary dark:text-text-darkPrimary line-clamp-1">
+          {note.title || "Untitled"}
+        </h2>
 
-      {/* Divider */}
-      <div className="h-px bg-gray-200 dark:bg-gray-700 mb-3 opacity-60"></div>
+        {/* CONTENT */}
+        <p className="text-sm text-text-secondary dark:text-text-darkSecondary line-clamp-3">
+          {note.content?.replace(/<[^>]+>/g, "")}
+        </p>
 
-      {/* Actions */}
-      <div className="flex justify-between items-center">
+        {/* FOOTER */}
+        <div className="mt-5 flex justify-between items-center">
+          <span className="text-xs text-text-secondary">
+            {new Date(note.updatedAt || Date.now()).toLocaleString()}
+          </span>
 
-        {/* Edit */}
-        <button
-          onClick={() => onEdit(note)}
-          className="
-            flex items-center gap-1 px-2 py-1 rounded-md
-            text-blue-500 hover:bg-blue-500/10
-            transition text-sm
-          "
-        >
-          <Pencil size={16} />
-          Edit
-        </button>
-
-        {/* Delete */}
-        <button
-          onClick={() => onDelete(note)}
-          className="
-            flex items-center gap-1 px-2 py-1 rounded-md
-            text-red-500 hover:bg-red-500/10
-            transition text-sm
-          "
-        >
-          <Trash2 size={16} />
-          Delete
-        </button>
-
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowConfirm(true);
+            }}
+            className="
+              text-xs text-red-500 opacity-0
+              group-hover:opacity-100
+              transition
+              hover:underline
+            "
+          >
+            Delete
+          </button>
+        </div>
       </div>
-    </motion.div>
+
+      {/* CONFIRM MODAL */}
+      <ConfirmModal
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={() => {
+          onDelete(note);
+          setShowConfirm(false);
+        }}
+        title="Delete note?"
+        message="This action cannot be undone."
+      />
+    </>
   );
-};
+}
 
 export default NoteCard;

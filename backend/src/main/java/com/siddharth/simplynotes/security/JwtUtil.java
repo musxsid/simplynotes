@@ -21,6 +21,7 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
+    // 🔥 GENERATE TOKEN
     public String generateToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
@@ -30,19 +31,23 @@ public class JwtUtil {
                 .compact();
     }
 
+    // 🔥 EXTRACT USERNAME
     public String extractUsername(String token) {
         return getClaims(token).getSubject();
     }
 
+    // 🔥 VALIDATE TOKEN (WITH DEBUG)
     public boolean validateToken(String token) {
         try {
             getClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
+            System.out.println("❌ JWT ERROR: " + e.getMessage());
             return false;
         }
     }
 
+    // 🔥 PARSE CLAIMS
     private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

@@ -1,5 +1,6 @@
 package com.siddharth.simplynotes.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -17,18 +18,40 @@ public class User {
     private String password;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore // 🔥 CRITICAL FIX (prevents infinite loop)
     private List<Note> notes;
 
-    // getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    // getters
+    public Long getId() {
+        return id;
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public String getUsername() {
+        return username;
+    }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public String getPassword() {
+        return password;
+    }
 
-    public List<Note> getNotes() { return notes; }
-    public void setNotes(List<Note> notes) {}
+    public List<Note> getNotes() {
+        return notes;
+    }
+
+    // setters
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public void setNotes(List<Note> notes) {
+        this.notes = notes; // ✅ FIXED
+    }
 }

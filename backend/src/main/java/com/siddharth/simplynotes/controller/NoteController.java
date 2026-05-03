@@ -26,53 +26,141 @@ public class NoteController {
         this.userRepository = userRepository;
     }
 
-    // 🔍 GET NOTES
-    @GetMapping
-    public List<Note> getNotes(Authentication authentication) {
+    // 🔍 GET SINGLE NOTE
+    @GetMapping("/{id}")
+public ResponseEntity<?> getNoteById(
+        @PathVariable Long id,
+        Authentication authentication
+) {
+    try {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
+
         String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        return noteRepository.findByUser(user);
+
+        Note note = noteRepository.findById(id).orElse(null);
+
+        if (note == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        }
+
+        if (note.getUser() == null) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Note has no user");
+        }
+
+        if (!note.getUser().getUsername().equals(username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        return ResponseEntity.ok(note);
+
+    } catch (Exception e) {
+        e.printStackTrace(); // 🔥 THIS WILL SHOW REAL ERROR IN BACKEND
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server error");
+    }
+}
+
+    // 🔍 GET ALL NOTES
+    @GetMapping
+    public ResponseEntity<?> getNotes(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
+
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+
+        List<Note> notes = noteRepository.findByUser(user);
+        return ResponseEntity.ok(notes);
     }
 
-    // ➕ ADD NOTE
+    // ➕ CREATE NOTE
     @PostMapping
-    public Note addNote(@RequestBody Note note,
-                        Authentication authentication) {
+    public ResponseEntity<?> addNote(
+            @RequestBody Note note,
+            Authentication authentication
+    ) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
 
         String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
+        User user = userRepository.findByUsername(username)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
 
         note.setUser(user);
-        return noteRepository.save(note);
+        Note saved = noteRepository.save(note);
+
+        return ResponseEntity.ok(saved);
     }
 
     // ❌ DELETE NOTE
     @DeleteMapping("/{id}")
-    public void deleteNote(@PathVariable Long id) {
-        noteRepository.deleteById(id);
+    public ResponseEntity<?> deleteNote(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
+
+        String username = authentication.getName();
+
+        Note note = noteRepository.findById(id)
+                .orElse(null);
+
+        if (note == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        }
+
+        if (!note.getUser().getUsername().equals(username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        noteRepository.delete(note);
+
+        return ResponseEntity.ok("Deleted");
     }
+
+    // ✏️ UPDATE NOTE
     @PutMapping("/{id}")
-public ResponseEntity<?> updateNote(
-        @PathVariable Long id,
-        @RequestBody Note updatedNote,
-        Authentication authentication
-) {
-    String username = authentication.getName();
+    public ResponseEntity<?> updateNote(
+            @PathVariable Long id,
+            @RequestBody Note updatedNote,
+            Authentication authentication
+    ) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
 
-    // Find existing note
-    Note note = noteRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Note not found"));
+        String username = authentication.getName();
 
-    // Security check: ensure note belongs to user
-    if (!note.getUser().getUsername().equals(username)) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        Note note = noteRepository.findById(id)
+                .orElse(null);
+
+        if (note == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        }
+
+        if (!note.getUser().getUsername().equals(username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        note.setTitle(updatedNote.getTitle());
+        note.setContent(updatedNote.getContent());
+
+        Note saved = noteRepository.save(note);
+
+        return ResponseEntity.ok(saved);
     }
-
-    // Update content
-    note.setContent(updatedNote.getContent());
-
-    noteRepository.save(note);
-
-    return ResponseEntity.ok(note);
-}
 }

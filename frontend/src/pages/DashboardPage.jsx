@@ -1,218 +1,119 @@
-import Modal from "../components/ui/Modal";
-import { useEffect, useState } from "react";
-import { getNotes, createNote, deleteNote, updateNote } from "../services/notesService";
-import NotesGrid from "../components/notes/NotesGrid";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
+import { getNotes, deleteNote } from "../services/notesService";
+import NotesGrid from "../components/notes/NotesGrid";
+
 function DashboardPage() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [noteToDelete, setNoteToDelete] = useState(null);
+  const navigate = useNavigate();
+
   const [notes, setNotes] = useState([]);
-  const [newNote, setNewNote] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState(null);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const filteredNotes = notes.filter((note) =>
-    note.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const fetchNotes = async () => {
-    try {
-      setLoading(true);
-      const res = await getNotes();
-      setNotes(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // FETCH NOTES
   useEffect(() => {
-    fetchNotes();
-  }, []);
-
-  // 🌙 DARK MODE
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    if (saved === "dark") setDarkMode(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
-
-  // ⌨️ SHORTCUTS
-  useEffect(() => {
-    const handler = (e) => {
-      const isMac = navigator.platform.toUpperCase().includes("MAC");
-      const isNew =
-        (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === "n";
-
-      if (isNew) {
-        e.preventDefault();
-        setEditingNote(null);
-        setNewNote("");
-        setIsModalOpen(true);
-      }
-
-      if (e.key === "Escape") {
-        setIsModalOpen(false);
-        setNoteToDelete(null);
+    const fetchNotes = async () => {
+      try {
+        const res = await getNotes();
+        setNotes(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch notes:", err);
+        toast.error("Failed to load notes");
+      } finally {
+        setLoading(false);
       }
     };
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    fetchNotes();
   }, []);
 
-  const handleSaveNote = async () => {
-    if (!newNote.trim()) return;
+  // FILTER
+  const filtered = useMemo(() => {
+    return notes.filter((n) =>
+      !query ||
+      n.title?.toLowerCase().includes(query.toLowerCase()) ||
+      n.content?.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [notes, query]);
 
+  // DELETE
+  const handleDelete = useCallback(async (note) => {
     try {
-      if (editingNote) {
-        await updateNote(editingNote.id, { content: newNote });
-        toast.success("Note updated");
-      } else {
-        await createNote({ content: newNote });
-        toast.success("Note created");
-      }
-
-      setNewNote("");
-      setEditingNote(null);
-      setIsModalOpen(false);
-      fetchNotes();
-    } catch {
-      toast.error("Something went wrong");
-    }
-  };
-
-  const handleEdit = (note) => {
-    setEditingNote(note);
-    setNewNote(note.content);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteClick = (note) => {
-    setNoteToDelete(note);
-  };
-
-  const confirmDelete = async () => {
-    if (!noteToDelete) return;
-
-    try {
-      await deleteNote(noteToDelete.id);
+      await deleteNote(note.id);
+      setNotes((prev) => prev.filter((n) => n.id !== note.id));
       toast.success("Note deleted");
-      setNoteToDelete(null);
-      fetchNotes();
-    } catch {
-      toast.error("Delete failed");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      toast.error("Failed to delete note");
     }
-  };
+  }, []);
+
+  // LOADING STATE
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <p className="text-text-secondary">Loading notes...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 w-full bg-gradient-to-br from-gray-100 to-gray-200 
-dark:from-gray-900 dark:to-black min-h-screen transition-colors">
+    <div className="w-full px-6 py-6">
 
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-5 mb-8">
-
-        <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100">
-          Your Notes
-        </h2>
-
-        <div className="flex gap-3 items-center">
-
-          <input
-            type="text"
-            placeholder="Search notes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border rounded-lg px-3 py-2 w-64 
-            bg-white dark:bg-gray-800 
-            text-gray-800 dark:text-white 
-            border-gray-300 dark:border-gray-600"
-          />
-
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="px-3 py-2 rounded-lg border 
-            bg-white dark:bg-gray-800 
-            text-gray-800 dark:text-white"
-          >
-            {darkMode ? "🌞" : "🌙"}
-          </button>
-
-          <button
-            onClick={() => {
-              setEditingNote(null);
-              setNewNote("");
-              setIsModalOpen(true);
-            }}
-            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition active:scale-95"
-          >
-            + New Note
-            <span className="ml-2 text-xs opacity-70">
-              (Ctrl/Cmd + N)
-            </span>
-          </button>
-
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-text-primary dark:text-text-darkPrimary">
+            Your Notes
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Capture ideas, stay organized
+          </p>
         </div>
+
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate("/notes/new")}
+          className="
+            px-5 py-2.5 rounded-xl
+            bg-indigo-600 text-white text-sm font-medium
+            shadow-sm hover:shadow-md
+            transition
+          "
+        >
+          + New Note
+        </motion.button>
       </div>
 
-      {/* CONTENT */}
-      {loading ? (
-        <div className="text-center mt-20 text-gray-400">
-          Loading notes...
-        </div>
-      ) : (
-        <NotesGrid
-          notes={filteredNotes}
-          onDelete={handleDeleteClick}
-          onEdit={handleEdit}
+      {/* SEARCH BAR */}
+      <div className="mb-8 max-w-md">
+        <input
+          type="text"
+          placeholder="Search notes..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="
+            w-full h-11 px-4 rounded-xl
+            bg-surface dark:bg-surface-dark
+            border border-border dark:border-border-dark
+            text-sm text-text-primary dark:text-text-darkPrimary
+            placeholder:text-text-secondary
+            outline-none
+            focus:ring-2 focus:ring-indigo-400
+            transition
+          "
         />
-      )}
+      </div>
 
-      {/* CREATE / EDIT MODAL */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <textarea
-          value={newNote}
-          onChange={(e) => setNewNote(e.target.value)}
-        className="w-full border rounded-lg p-2 mb-4 
-                  bg-white dark:bg-gray-800 
-                  text-gray-800 dark:text-white 
-                  border-gray-300 dark:border-gray-600"
-          rows="4"
-        />
-
-        <button
-          onClick={handleSaveNote}
-          className="bg-black text-white px-4 py-2 rounded-lg w-full"
-        >
-          {editingNote ? "Update Note" : "Save Note"}
-        </button>
-      </Modal>
-
-      {/* DELETE MODAL */}
-      <Modal isOpen={!!noteToDelete} onClose={() => setNoteToDelete(null)}>
-      <p className="mb-4 text-lg font-medium text-gray-800 dark:text-gray-200">
-         Delete this note?
-      </p>
-
-        <button
-          onClick={confirmDelete}
-          className="bg-red-500 text-white px-4 py-2 rounded-lg w-full"
-        >
-          Delete
-        </button>
-      </Modal>
-
+      {/* NOTES GRID */}
+      <NotesGrid
+        notes={filtered}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

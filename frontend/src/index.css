@@ -2,23 +2,130 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+/* 🌙 GLOBAL BASE */
+body {
+  @apply bg-background dark:bg-background-dark 
+         text-text-primary dark:text-text-darkPrimary
+         antialiased;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
 }
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(15px);
+
+/* 🔥 MAIN APP BACKGROUND */
+.app-bg {
+  @apply min-h-screen w-full bg-background dark:bg-background-dark;
+  position: relative;
+}
+
+/* ✨ SUBTLE PREMIUM GLOW */
+.app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle at 20% 20%,
+    rgba(99, 102, 241, 0.08),
+    transparent 40%
+  );
+  pointer-events: none;
+}
+
+/* 🔤 TYPOGRAPHY SYSTEM */
+h1 {
+  @apply text-3xl font-semibold tracking-tight;
+}
+
+h2 {
+  @apply text-2xl font-semibold tracking-tight;
+}
+
+p {
+  @apply text-sm leading-relaxed;
+}
+
+/* 🧠 EDITOR (TIPTAP) */
+.ProseMirror {
+  @apply min-h-[300px] outline-none text-sm leading-relaxed;
+}
+
+.ProseMirror p {
+  @apply my-1;
+}
+
+.ProseMirror h1 {
+  @apply text-2xl font-bold my-2;
+}
+
+.ProseMirror h2 {
+  @apply text-xl font-semibold my-2;
+}
+
+.ProseMirror ul {
+  @apply list-disc pl-5;
+}
+
+.ProseMirror ol {
+  @apply list-decimal pl-5;
+}
+
+/* 🔥 SCROLLBAR (PREMIUM LOOK) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* ===================================================== */
+/* 🧩 COMPONENT STYLES (IMPORTANT PART FOR TOOLBAR) */
+/* ===================================================== */
+
+@layer components {
+
+  /* 🔘 TOOL BUTTON */
+  .tool-btn {
+    @apply p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
+           transition flex items-center justify-center;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  /* 🟦 ACTIVE STATE (future use) */
+  .tool-btn-active {
+    @apply bg-indigo-100 text-indigo-600;
+  }
+
+  /* 🔽 SELECT DROPDOWN */
+  .tool-select {
+    @apply px-2 py-1 rounded-lg border text-sm outline-none 
+           bg-white dark:bg-gray-900
+           focus:ring-2 focus:ring-indigo-400;
+  }
+
+  /* ✨ TOOLBAR CONTAINER */
+  .editor-toolbar {
+    @apply bg-white dark:bg-gray-900 
+           border border-gray-200 dark:border-gray-700
+           rounded-2xl px-4 py-3 shadow-sm;
+  }
+
+  /* 📦 TOOL GROUP */
+  .tool-group {
+    @apply flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700;
+  }
+
+  /* 🧠 AI DROPDOWN */
+  .ai-dropdown {
+    @apply absolute right-0 mt-2 w-48 
+           bg-white dark:bg-gray-900 
+           border rounded-xl shadow-lg z-50;
+  }
+
+  .ai-item {
+    @apply block w-full text-left px-4 py-2 text-sm 
+           hover:bg-gray-100 dark:hover:bg-gray-800;
   }
 }

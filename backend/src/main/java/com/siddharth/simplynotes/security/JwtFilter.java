@@ -1,8 +1,11 @@
 package com.siddharth.simplynotes.security;
 
 import com.siddharth.simplynotes.service.CustomUserDetailsService;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -23,51 +26,69 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                   HttpServletResponse response,
-                                   FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
 
         String path = request.getServletPath();
 
-        // ✅ SKIP AUTH + ERROR ENDPOINTS
+        // ✅ Skip auth endpoints
         if (path.startsWith("/api/auth") || path.equals("/error")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String header = request.getHeader("Authorization");
+        String authHeader = request.getHeader("Authorization");
 
-        // ✅ Only process if token exists
-        if (header != null && header.startsWith("Bearer ")) {
+        // 🔍 DEBUG (you can remove later)
+        System.out.println("➡️ Request Path: " + path);
+        System.out.println("➡️ Auth Header: " + authHeader);
 
-            String token = header.substring(7);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
 
-            // ✅ Validate token
-            if (jwtUtil.validateToken(token)) {
+            String token = authHeader.substring(7);
 
-                String username = jwtUtil.extractUsername(token);
+            System.out.println("➡️ Extracted Token: " + token);
 
-                // ✅ Avoid setting authentication again if already set
-                if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                if (jwtUtil.validateToken(token)) {
 
-                    var userDetails = userDetailsService.loadUserByUsername(username);
+                    String username = jwtUtil.extractUsername(token);
 
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
+                    System.out.println("✅ Valid token for user: " + username);
 
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Only set auth if not already set
+                    if (SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                        var userDetails = userDetailsService.loadUserByUsername(username);
+
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+
+                        authToken.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request)
+                        );
+
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
+
+                } else {
+                    System.out.println("❌ Invalid JWT token");
                 }
+
+            } catch (Exception e) {
+                System.out.println("❌ JWT PROCESSING ERROR: " + e.getMessage());
             }
+        } else {
+            System.out.println("⚠️ No Authorization header or invalid format");
         }
 
-        // ✅ Continue filter chain
         filterChain.doFilter(request, response);
     }
 }
