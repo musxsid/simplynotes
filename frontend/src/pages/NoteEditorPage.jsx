@@ -87,14 +87,18 @@ const [selectedFolder, setSelectedFolder] = useState("");
 }, []);
 
   // FETCH NOTE
+  // FETCH NOTE
   useEffect(() => {
     if (!id || id === "new") return;
 
     const fetchNote = async () => {
       try {
         const res = await getNoteById(id);
-            setNote(res.data);
-            setSelectedFolder(res.data.folderId?.toString() || "");
+        setNote(res.data);
+        
+        // ✅ FIX 1: Read from the new nested folder object instead of raw folderId
+        setSelectedFolder(res.data.folder?.id?.toString() || ""); 
+        
         if (editor && res.data.content) {
           editor.commands.setContent(res.data.content);
         }
@@ -107,33 +111,28 @@ const [selectedFolder, setSelectedFolder] = useState("");
   }, [id, editor]);
 
   // SAVE
-// IMPORTANT CHANGE: ONLY SMALL FIXES APPLIED
+  const handleSave = async () => {
+    try {
+      const payload = {
+        title: note.title || "Untitled",
+        content: editor.getHTML(),
 
-// inside handleSave()
+        // ✅ FIX 2: Send a nested object that Spring Boot Jackson can map to an Entity
+        folder: selectedFolder ? { id: Number(selectedFolder) } : null,
+      };
 
-const handleSave = async () => {
-  try {
-    const payload = {
-      title: note.title || "Untitled",
-      content: editor.getHTML(),
-
-      // ✅ FIX: convert to number
-      folderId: selectedFolder ? Number(selectedFolder) : null,
-    };
-
-    if (id === "new") {
-      const res = await createNote(payload);
-      toast.success("Note created");
-      navigate(`/notes/${res.data.id}`);
-    } else {
-      await updateNote(id, payload);
-      toast.success("Note saved");
+      if (id === "new") {
+        const res = await createNote(payload);
+        toast.success("Note created");
+        navigate(`/notes/${res.data.id}`);
+      } else {
+        await updateNote(id, payload);
+        toast.success("Note saved");
+      }
+    } catch {
+      toast.error("Save failed");
     }
-  } catch {
-    toast.error("Save failed");
-  }
-};
-
+  };
   if (!editor) return null;
 
   return (

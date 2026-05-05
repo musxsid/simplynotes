@@ -51,11 +51,14 @@ function DashboardPage() {
   }, []);
 
   // 🔥 FIXED GROUPING
+// 🔥 FIXED GROUPING
   const groupedNotes = useMemo(() => {
     const map = {};
 
     notes.forEach((note) => {
-      const folderId = note.folder?.id || note.folderId;
+      // ✅ FIX 4: Safely read from the guaranteed API response structure
+      const folderId = note.folder?.id;
+      const folderName = note.folder?.name || "Ungrouped";
 
       // FILTER BY SIDEBAR
       if (activeFolder && String(folderId) !== activeFolder) return;
@@ -69,18 +72,12 @@ function DashboardPage() {
         return;
       }
 
-      // 🔥 FIXED NAME RESOLUTION
-      const folderName =
-        note.folder?.name ||
-        folders.find((f) => Number(f.id) === Number(folderId))?.name ||
-        "Ungrouped";
-
       if (!map[folderName]) map[folderName] = [];
       map[folderName].push(note);
     });
 
     return map;
-  }, [notes, activeFolder, query, folders]); // ✅ FIXED dependency
+  }, [notes, activeFolder, query]); // folders removed from dependency array as backend handles naming now // ✅ FIXED dependency
 
   // DELETE
   const handleDelete = useCallback(async (note) => {

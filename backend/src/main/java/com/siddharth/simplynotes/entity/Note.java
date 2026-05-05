@@ -20,10 +20,15 @@ public class Note {
     @JsonIgnore
     private User user;
 
-    // 🔥 NEW: Folder relation (nullable)
     @ManyToOne
     @JoinColumn(name = "folder_id")
     private Folder folder;
+
+    // 🔥 NEW: Link note to a specific workspace
+    @ManyToOne
+    @JoinColumn(name = "workspace_id")
+    @JsonIgnore
+    private Workspace workspace;
 
     // getters
     public Long getId() { return id; }
@@ -31,6 +36,7 @@ public class Note {
     public String getContent() { return content; }
     public User getUser() { return user; }
     public Folder getFolder() { return folder; }
+    public Workspace getWorkspace() { return workspace; } // Added getter
 
     // setters
     public void setId(Long id) { this.id = id; }
@@ -38,4 +44,5 @@ public class Note {
     public void setContent(String content) { this.content = content; }
     public void setUser(User user) { this.user = user; }
     public void setFolder(Folder folder) { this.folder = folder; }
+    public void setWorkspace(Workspace workspace) { this.workspace = workspace; } // Added setter
 }
