@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
+import { Search, FileText, Plus } from "lucide-react"; // 🔥 Added Icons
 
 import { getNotes, deleteNote } from "../services/notesService";
 import { getFolders } from "../services/folderService";
@@ -29,41 +30,49 @@ function DashboardPage() {
         console.error("Failed to fetch folders:", err);
       }
     };
-
     fetchFolders();
   }, []);
 
-  // FETCH NOTES
-  useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        const res = await getNotes();
-        setNotes(res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch notes:", err);
-        toast.error("Failed to load notes");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // FETCH NOTES FUNCTION
+  const fetchNotes = async () => {
+    setLoading(true);
+    try {
+      const res = await getNotes();
+      setNotes(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch notes:", err);
+      toast.error("Failed to load notes");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // FETCH ON MOUNT
+  useEffect(() => {
     fetchNotes();
   }, []);
 
-  // 🔥 FIXED GROUPING
-// 🔥 FIXED GROUPING
+  // 🔥 LISTEN FOR WORKSPACE CHANGES (from Sidebar)
+  useEffect(() => {
+    const handleWorkspaceChange = () => {
+      fetchNotes();
+      setQuery(""); // Clear search when switching workspaces
+    };
+
+    window.addEventListener("workspaceChanged", handleWorkspaceChange);
+    return () => window.removeEventListener("workspaceChanged", handleWorkspaceChange);
+  }, []);
+
+  // GROUP NOTES
   const groupedNotes = useMemo(() => {
     const map = {};
 
     notes.forEach((note) => {
-      // ✅ FIX 4: Safely read from the guaranteed API response structure
       const folderId = note.folder?.id;
       const folderName = note.folder?.name || "Ungrouped";
 
-      // FILTER BY SIDEBAR
       if (activeFolder && String(folderId) !== activeFolder) return;
 
-      // SEARCH FILTER
       if (
         query &&
         !note.title?.toLowerCase().includes(query.toLowerCase()) &&
@@ -77,9 +86,9 @@ function DashboardPage() {
     });
 
     return map;
-  }, [notes, activeFolder, query]); // folders removed from dependency array as backend handles naming now // ✅ FIXED dependency
+  }, [notes, activeFolder, query]);
 
-  // DELETE
+  // DELETE NOTE
   const handleDelete = useCallback(async (note) => {
     try {
       await deleteNote(note.id);
@@ -93,80 +102,90 @@ function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <p className="text-text-secondary">Loading notes...</p>
+      <div className="w-full h-[60vh] flex flex-col items-center justify-center">
+        <div className="w-6 h-6 border-2 border-text-secondary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-medium text-text-secondary">Syncing workspace...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full px-6 py-6">
+    <div className="w-full max-w-6xl mx-auto px-8 py-10">
 
-      {/* HEADER */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* 🔥 PREMIUM HEADER */}
+      <div className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-text-primary dark:text-text-darkPrimary">
+          <h1 className="text-4xl font-extrabold tracking-tight text-text-primary dark:text-text-darkPrimary">
             Your Notes
           </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Capture ideas, stay organized
+          <p className="text-[15px] text-text-secondary mt-2">
+            Capture ideas, stay organized, and focus on what matters.
           </p>
         </div>
 
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => navigate("/notes/new")}
-          className="
-            px-5 py-2.5 rounded-xl
-            bg-indigo-600 text-white text-sm font-medium
-            shadow-sm hover:shadow-md
-            transition
-          "
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-accent dark:bg-accent-dark text-white dark:text-background-dark text-[15px] font-semibold shadow-card hover:shadow-cardHover transition-all duration-200"
         >
-          + New Note
+          <Plus size={18} /> New Note
         </motion.button>
       </div>
 
-      {/* SEARCH */}
-      <div className="mb-8 max-w-md">
-        <input
-          type="text"
-          placeholder="Search notes..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="
-            w-full h-11 px-4 rounded-xl
-            bg-surface dark:bg-surface-dark
-            border border-border dark:border-border-dark
-            text-sm text-text-primary dark:text-text-darkPrimary
-            placeholder:text-text-secondary
-            outline-none
-            focus:ring-2 focus:ring-indigo-400
-            transition
-          "
-        />
-      </div>
-
-      {/* 🔥 GROUPED NOTES */}
-      {Object.keys(groupedNotes).length === 0 ? (
-        <p className="text-text-secondary text-sm">No notes found</p>
-      ) : (
-        Object.entries(groupedNotes).map(([folderName, notes]) => (
-          <div key={folderName} className="mb-10">
-
-            <h2 className="text-lg font-semibold mb-3 text-text-secondary">
-              {folderName}
-            </h2>
-
-            <NotesGrid
-              notes={notes}
-              onDelete={handleDelete}
-            />
-          </div>
-        ))
+      {/* 🔥 SLEEK SEARCH BAR */}
+      {notes.length > 0 && (
+        <div className="relative mb-12 max-w-xl">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary opacity-70" />
+          <input
+            type="text"
+            placeholder="Search your thoughts..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full h-12 pl-12 pr-4 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-[15px] text-text-primary dark:text-text-darkPrimary placeholder:text-text-secondary outline-none focus:border-text-secondary dark:focus:border-text-secondary transition-colors shadow-sm"
+          />
+        </div>
       )}
 
+      {/* 🔥 PREMIUM EMPTY STATE */}
+      {!loading && notes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-[50vh] text-center max-w-md mx-auto">
+          <div className="w-20 h-20 bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+            <FileText size={32} className="text-text-secondary opacity-40" />
+          </div>
+          <h3 className="text-xl font-bold text-text-primary dark:text-text-darkPrimary tracking-tight">
+            It's quiet in here
+          </h3>
+          <p className="text-[15px] text-text-secondary mt-2 leading-relaxed">
+            This workspace doesn't have any notes yet. Start capturing your ideas or create a new project.
+          </p>
+          <button 
+            onClick={() => navigate("/notes/new")}
+            className="mt-8 px-6 py-3 bg-muted dark:bg-muted-dark hover:bg-border dark:hover:bg-border-dark text-text-primary dark:text-text-darkPrimary rounded-xl text-[14px] font-bold transition-colors"
+          >
+            Create your first note
+          </button>
+        </div>
+      ) : (
+        /* 🔥 GROUPED NOTES STYLING */
+        Object.keys(groupedNotes).length === 0 ? (
+          <div className="text-center py-20">
+             <p className="text-text-secondary text-[15px]">No notes match your search.</p>
+          </div>
+        ) : (
+          Object.entries(groupedNotes).map(([folderName, notesGroup]) => (
+            <div key={folderName} className="mb-12">
+              <h2 className="text-xs font-bold mb-4 text-text-secondary uppercase tracking-[0.15em] ml-1">
+                {folderName}
+              </h2>
+              <NotesGrid
+                notes={notesGroup}
+                onDelete={handleDelete}
+              />
+            </div>
+          ))
+        )
+      )}
     </div>
   );
 }

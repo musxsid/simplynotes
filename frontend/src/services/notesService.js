@@ -16,7 +16,12 @@ const getAuthHeaders = () => {
 // ================= NOTES =================
 
 export const getNotes = () => {
-  return axios.get(`${API}/notes`, getAuthHeaders());
+  const workspaceId = localStorage.getItem("activeWorkspaceId");
+  // This automatically adds ?workspaceId=123 to your GET request
+  return axios.get(`${API}/notes`, {
+    ...getAuthHeaders(),
+    params: { workspaceId } 
+  });
 };
 
 export const getNoteById = (id) => {
@@ -24,7 +29,12 @@ export const getNoteById = (id) => {
 };
 
 export const createNote = (data) => {
-  return axios.post(`${API}/notes`, data, getAuthHeaders());
+  const workspaceId = localStorage.getItem("activeWorkspaceId");
+  // This ensures workspaceId hits your backend's @RequestParam
+  return axios.post(`${API}/notes`, data, {
+    ...getAuthHeaders(),
+    params: { workspaceId } 
+  });
 };
 
 export const updateNote = (id, data) => {

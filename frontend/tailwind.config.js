@@ -1,3 +1,4 @@
+/** @type {import('tailwindcss').Config} */
 export default {
   darkMode: "class",
   content: [
@@ -7,61 +8,42 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 🌌 BASE
         background: {
-          DEFAULT: "#F8FAFC",
-          dark: "#070B10", // deeper + richer
-        },
-
-        // 🧩 SURFACE (cards)
-        surface: {
           DEFAULT: "#FFFFFF",
-          dark: "#0F172A", // less gray, more navy
+          dark: "#09090B",
         },
-
-        // 🌫️ SOFT SURFACE
-        surfaceAlt: {
-          dark: "#111827",
+        surface: {
+          DEFAULT: "#FAFAFA",
+          dark: "#18181B",
         },
-
-        // 🪶 MUTED
         muted: {
-          DEFAULT: "#F1F5F9",
-          dark: "#1E293B",
+          DEFAULT: "#F4F4F5",
+          dark: "#27272A",
         },
-
-        // 🧱 BORDER (subtle)
         border: {
-          DEFAULT: "#E5E7EB",
-          dark: "rgba(255,255,255,0.06)",
+          DEFAULT: "#E4E4E7",
+          dark: "#27272A",
         },
-
-        // ✍️ TEXT
         text: {
-          primary: "#0F172A",
-          secondary: "#64748B",
-          darkPrimary: "#E5E7EB",
-          darkSecondary: "#94A3B8",
+          primary: "#09090B",
+          secondary: "#71717A",
+          darkPrimary: "#FAFAFA",
+          darkSecondary: "#A1A1AA",
         },
-
-        // 🎯 ACCENT (STRONGER IDENTITY)
         accent: {
-          DEFAULT: "#6366F1",
-          secondary: "#8B5CF6",
-          glow: "#7C3AED",
+          DEFAULT: "#18181B",
+          secondary: "#52525B",
+          glow: "#27272A",
+          dark: "#FFFFFF",
         },
       },
-
-      // ✨ SHADOWS (premium depth)
       boxShadow: {
-        card: "0 4px 20px rgba(0,0,0,0.25)",
-        cardHover: "0 12px 40px rgba(0,0,0,0.45)",
-        glow: "0 0 0 1px rgba(99,102,241,0.2), 0 8px 30px rgba(99,102,241,0.25)",
+        card: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        cardHover: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
       },
-
       borderRadius: {
-        xl: "14px",
-        "2xl": "18px",
+        xl: "12px", 
+        "2xl": "16px",
         "3xl": "24px",
       },
     },

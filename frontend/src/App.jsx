@@ -1,10 +1,11 @@
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
 
 import Sidebar from "./components/layout/Sidebar";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import CommandPalette from "./components/ui/CommandPalette";
+
+// 🔥 IMPORT THE NEW OMNI SEARCH (Replaces CommandPalette)
+import OmniSearch from "./components/ui/OmniSearch";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -15,7 +16,7 @@ import WorkPage from "./pages/WorkPage";
 
 const NO_SIDEBAR_ROUTES = ["/", "/login", "/signup"];
 
-function AppLayout({ children, setPaletteOpen }) {
+function AppLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -42,53 +43,14 @@ function AppLayout({ children, setPaletteOpen }) {
 
 function App() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const [paletteOpen, setPaletteOpen] = useState(false);
-
-  // 🔥 CTRL + K SHORTCUT
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((prev) => !prev);
-      }
-
-      if (e.key === "Escape") {
-        setPaletteOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // 🧠 COMMANDS
-  const commands = [
-    {
-      label: "Go to Dashboard",
-      action: () => navigate("/dashboard"),
-    },
-    {
-      label: "Create New Note",
-      action: () => navigate("/notes/new"),
-    },
-    {
-      label: "Go to Work Page",
-      action: () => navigate("/work"),
-    },
-  ];
 
   return (
     <>
-      {/* COMMAND PALETTE */}
-      <CommandPalette
-        open={paletteOpen}
-        setOpen={setPaletteOpen}
-        commands={commands}
-      />
+      {/* 🔥 SELF-CONTAINED OMNI SEARCH */}
+      {/* It listens for Ctrl+K globally on its own! */}
+      <OmniSearch />
 
-      <AppLayout setPaletteOpen={setPaletteOpen}>
+      <AppLayout>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             {/* PUBLIC */}
