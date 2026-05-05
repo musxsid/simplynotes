@@ -17,11 +17,18 @@ public class User {
 
     private String password;
 
+    // ✅ EXISTING (UNCHANGED)
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    @JsonIgnore // 🔥 CRITICAL FIX (prevents infinite loop)
+    @JsonIgnore // prevents infinite recursion
     private List<Note> notes;
 
-    // getters
+    // 🔥 NEW (SAFE ADDITION)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore // prevents recursion
+    private List<Folder> folders;
+
+    // ===== GETTERS =====
+
     public Long getId() {
         return id;
     }
@@ -38,7 +45,12 @@ public class User {
         return notes;
     }
 
-    // setters
+    public List<Folder> getFolders() {
+        return folders;
+    }
+
+    // ===== SETTERS =====
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -52,6 +64,10 @@ public class User {
     }
 
     public void setNotes(List<Note> notes) {
-        this.notes = notes; // ✅ FIXED
+        this.notes = notes;
+    }
+
+    public void setFolders(List<Folder> folders) {
+        this.folders = folders;
     }
 }

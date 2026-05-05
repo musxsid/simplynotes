@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ConfirmModal from "../ui/ConfirmModal";
 
 function NoteCard({ note, onDelete }) {
@@ -10,6 +10,19 @@ function NoteCard({ note, onDelete }) {
     if (!note?.id) return;
     navigate(`/notes/${note.id}`);
   };
+
+  // ✅ FIX: LOCK BACKGROUND WHEN MODAL IS OPEN
+  useEffect(() => {
+    if (showConfirm) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [showConfirm]);
 
   return (
     <>

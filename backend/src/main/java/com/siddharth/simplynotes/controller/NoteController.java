@@ -2,8 +2,11 @@ package com.siddharth.simplynotes.controller;
 
 import com.siddharth.simplynotes.entity.Note;
 import com.siddharth.simplynotes.entity.User;
+import com.siddharth.simplynotes.entity.Folder;
+
 import com.siddharth.simplynotes.repository.NoteRepository;
 import com.siddharth.simplynotes.repository.UserRepository;
+import com.siddharth.simplynotes.repository.FolderRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,47 +22,50 @@ public class NoteController {
 
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
+    private final FolderRepository folderRepository;
 
     public NoteController(NoteRepository noteRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          FolderRepository folderRepository) {
         this.noteRepository = noteRepository;
         this.userRepository = userRepository;
+        this.folderRepository = folderRepository;
     }
 
     // 🔍 GET SINGLE NOTE
     @GetMapping("/{id}")
-public ResponseEntity<?> getNoteById(
-        @PathVariable Long id,
-        Authentication authentication
-) {
-    try {
-        if (authentication == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+    public ResponseEntity<?> getNoteById(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+            }
+
+            String username = authentication.getName();
+
+            Note note = noteRepository.findById(id).orElse(null);
+
+            if (note == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+            }
+
+            if (note.getUser() == null) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Note has no user");
+            }
+
+            if (!note.getUser().getUsername().equals(username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+            }
+
+            return ResponseEntity.ok(note);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server error");
         }
-
-        String username = authentication.getName();
-
-        Note note = noteRepository.findById(id).orElse(null);
-
-        if (note == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
-        }
-
-        if (note.getUser() == null) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Note has no user");
-        }
-
-        if (!note.getUser().getUsername().equals(username)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
-        }
-
-        return ResponseEntity.ok(note);
-
-    } catch (Exception e) {
-        e.printStackTrace(); // 🔥 THIS WILL SHOW REAL ERROR IN BACKEND
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server error");
     }
-}
 
     // 🔍 GET ALL NOTES
     @GetMapping
@@ -69,8 +75,7 @@ public ResponseEntity<?> getNoteById(
         }
 
         String username = authentication.getName();
-        User user = userRepository.findByUsername(username)
-                .orElse(null);
+        User user = userRepository.findByUsername(username).orElse(null);
 
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
@@ -91,16 +96,21 @@ public ResponseEntity<?> getNoteById(
         }
 
         String username = authentication.getName();
-        User user = userRepository.findByUsername(username)
-                .orElse(null);
+        User user = userRepository.findByUsername(username).orElse(null);
 
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
 
         note.setUser(user);
-        Note saved = noteRepository.save(note);
 
+        // 🔥 OPTIONAL: attach folder if provided
+        if (note.getFolder() != null && note.getFolder().getId() != null) {
+            Folder folder = folderRepository.findById(note.getFolder().getId()).orElse(null);
+            note.setFolder(folder);
+        }
+
+        Note saved = noteRepository.save(note);
         return ResponseEntity.ok(saved);
     }
 
@@ -116,8 +126,7 @@ public ResponseEntity<?> getNoteById(
 
         String username = authentication.getName();
 
-        Note note = noteRepository.findById(id)
-                .orElse(null);
+        Note note = noteRepository.findById(id).orElse(null);
 
         if (note == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
@@ -128,7 +137,6 @@ public ResponseEntity<?> getNoteById(
         }
 
         noteRepository.delete(note);
-
         return ResponseEntity.ok("Deleted");
     }
 
@@ -145,8 +153,7 @@ public ResponseEntity<?> getNoteById(
 
         String username = authentication.getName();
 
-        Note note = noteRepository.findById(id)
-                .orElse(null);
+        Note note = noteRepository.findById(id).orElse(null);
 
         if (note == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
@@ -159,8 +166,15 @@ public ResponseEntity<?> getNoteById(
         note.setTitle(updatedNote.getTitle());
         note.setContent(updatedNote.getContent());
 
-        Note saved = noteRepository.save(note);
+        // 🔥 NEW: update folder safely
+        if (updatedNote.getFolder() != null && updatedNote.getFolder().getId() != null) {
+            Folder folder = folderRepository.findById(updatedNote.getFolder().getId()).orElse(null);
+            note.setFolder(folder);
+        } else {
+            note.setFolder(null);
+        }
 
+        Note saved = noteRepository.save(note);
         return ResponseEntity.ok(saved);
     }
 }

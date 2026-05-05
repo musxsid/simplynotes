@@ -1,17 +1,37 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { getNotes, deleteNote } from "../services/notesService";
+import { getFolders } from "../services/folderService";
 import NotesGrid from "../components/notes/NotesGrid";
 
 function DashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const [folders, setFolders] = useState([]);
   const [notes, setNotes] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const params = new URLSearchParams(location.search);
+  const activeFolder = params.get("folder");
+
+  // FETCH FOLDERS
+  useEffect(() => {
+    const fetchFolders = async () => {
+      try {
+        const res = await getFolders();
+        setFolders(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch folders:", err);
+      }
+    };
+
+    fetchFolders();
+  }, []);
 
   // FETCH NOTES
   useEffect(() => {
@@ -30,14 +50,37 @@ function DashboardPage() {
     fetchNotes();
   }, []);
 
-  // FILTER
-  const filtered = useMemo(() => {
-    return notes.filter((n) =>
-      !query ||
-      n.title?.toLowerCase().includes(query.toLowerCase()) ||
-      n.content?.toLowerCase().includes(query.toLowerCase())
-    );
-  }, [notes, query]);
+  // 🔥 FIXED GROUPING
+  const groupedNotes = useMemo(() => {
+    const map = {};
+
+    notes.forEach((note) => {
+      const folderId = note.folder?.id || note.folderId;
+
+      // FILTER BY SIDEBAR
+      if (activeFolder && String(folderId) !== activeFolder) return;
+
+      // SEARCH FILTER
+      if (
+        query &&
+        !note.title?.toLowerCase().includes(query.toLowerCase()) &&
+        !note.content?.toLowerCase().includes(query.toLowerCase())
+      ) {
+        return;
+      }
+
+      // 🔥 FIXED NAME RESOLUTION
+      const folderName =
+        note.folder?.name ||
+        folders.find((f) => Number(f.id) === Number(folderId))?.name ||
+        "Ungrouped";
+
+      if (!map[folderName]) map[folderName] = [];
+      map[folderName].push(note);
+    });
+
+    return map;
+  }, [notes, activeFolder, query, folders]); // ✅ FIXED dependency
 
   // DELETE
   const handleDelete = useCallback(async (note) => {
@@ -51,7 +94,6 @@ function DashboardPage() {
     }
   }, []);
 
-  // LOADING STATE
   if (loading) {
     return (
       <div className="flex justify-center items-center h-40">
@@ -89,7 +131,7 @@ function DashboardPage() {
         </motion.button>
       </div>
 
-      {/* SEARCH BAR */}
+      {/* SEARCH */}
       <div className="mb-8 max-w-md">
         <input
           type="text"
@@ -109,11 +151,25 @@ function DashboardPage() {
         />
       </div>
 
-      {/* NOTES GRID */}
-      <NotesGrid
-        notes={filtered}
-        onDelete={handleDelete}
-      />
+      {/* 🔥 GROUPED NOTES */}
+      {Object.keys(groupedNotes).length === 0 ? (
+        <p className="text-text-secondary text-sm">No notes found</p>
+      ) : (
+        Object.entries(groupedNotes).map(([folderName, notes]) => (
+          <div key={folderName} className="mb-10">
+
+            <h2 className="text-lg font-semibold mb-3 text-text-secondary">
+              {folderName}
+            </h2>
+
+            <NotesGrid
+              notes={notes}
+              onDelete={handleDelete}
+            />
+          </div>
+        ))
+      )}
+
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
 } from "lucide-react";
+import { getFolders } from "../services/folderService";
 
 import AIPanel from "../components/ai/AIPanel";
 
@@ -34,6 +35,8 @@ function NoteEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [aiResult, setAiResult] = useState("");
+  const [folders, setFolders] = useState([]);
+const [selectedFolder, setSelectedFolder] = useState("");
 
   const [note, setNote] = useState({ title: "", content: "" });
   const [aiOpen, setAiOpen] = useState(false);
@@ -69,6 +72,19 @@ function NoteEditorPage() {
     ],
     content: "",
   });
+  
+  useEffect(() => {
+  const fetchFolders = async () => {
+    try {
+      const res = await getFolders();
+      setFolders(res.data || []);
+    } catch (err) {
+      console.error("Failed to load folders", err);
+    }
+  };
+
+  fetchFolders();
+}, []);
 
   // FETCH NOTE
   useEffect(() => {
@@ -77,8 +93,8 @@ function NoteEditorPage() {
     const fetchNote = async () => {
       try {
         const res = await getNoteById(id);
-        setNote(res.data);
-
+            setNote(res.data);
+            setSelectedFolder(res.data.folderId?.toString() || "");
         if (editor && res.data.content) {
           editor.commands.setContent(res.data.content);
         }
@@ -91,25 +107,32 @@ function NoteEditorPage() {
   }, [id, editor]);
 
   // SAVE
-  const handleSave = async () => {
-    try {
-      const payload = {
-        title: note.title || "Untitled",
-        content: editor.getHTML(),
-      };
+// IMPORTANT CHANGE: ONLY SMALL FIXES APPLIED
 
-      if (id === "new") {
-        const res = await createNote(payload);
-        toast.success("Note created");
-        navigate(`/notes/${res.data.id}`);
-      } else {
-        await updateNote(id, payload);
-        toast.success("Note saved");
-      }
-    } catch {
-      toast.error("Save failed");
+// inside handleSave()
+
+const handleSave = async () => {
+  try {
+    const payload = {
+      title: note.title || "Untitled",
+      content: editor.getHTML(),
+
+      // ✅ FIX: convert to number
+      folderId: selectedFolder ? Number(selectedFolder) : null,
+    };
+
+    if (id === "new") {
+      const res = await createNote(payload);
+      toast.success("Note created");
+      navigate(`/notes/${res.data.id}`);
+    } else {
+      await updateNote(id, payload);
+      toast.success("Note saved");
     }
-  };
+  } catch {
+    toast.error("Save failed");
+  }
+};
 
   if (!editor) return null;
 
@@ -140,6 +163,34 @@ function NoteEditorPage() {
         placeholder="Untitled"
         className="text-4xl font-bold w-full mb-6 outline-none bg-transparent text-text-primary dark:text-text-darkPrimary"
       />
+      {/* ✅ ADD THIS HERE */}
+<div className="mb-4 flex items-center gap-3">
+  <select
+    value={selectedFolder || ""}
+    onChange={(e) => setSelectedFolder(e.target.value)}
+    className="
+      px-4 py-2 rounded-xl text-sm
+      bg-surface dark:bg-surface-dark
+      border border-border dark:border-border-dark
+      text-text-primary dark:text-text-darkPrimary
+      outline-none focus:ring-2 focus:ring-indigo-400
+    "
+  >
+    <option value="">No Folder</option>
+
+    {folders.map((f) => (
+      <option key={f.id} value={f.id}>
+        {f.name}
+      </option>
+    ))}
+  </select>
+
+  {selectedFolder && (
+    <span className="text-xs text-text-secondary">
+      📁 {folders.find(f => f.id === Number(selectedFolder))?.name}
+    </span>
+  )}
+</div>
 
       {/* TOOLBAR */}
       <div className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-2xl px-4 py-3 shadow-sm mb-5">

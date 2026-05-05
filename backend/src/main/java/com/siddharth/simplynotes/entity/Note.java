@@ -12,23 +12,30 @@ public class Note {
 
     private String title;
 
-    @Column(columnDefinition = "TEXT") // 🔥 IMPORTANT for editor HTML
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonIgnore // 🔥 KEEP THIS
+    @JsonIgnore
     private User user;
+
+    // 🔥 NEW: Folder relation (nullable)
+    @ManyToOne
+    @JoinColumn(name = "folder_id")
+    private Folder folder;
 
     // getters
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getContent() { return content; }
     public User getUser() { return user; }
+    public Folder getFolder() { return folder; }
 
     // setters
     public void setId(Long id) { this.id = id; }
     public void setTitle(String title) { this.title = title; }
     public void setContent(String content) { this.content = content; }
     public void setUser(User user) { this.user = user; }
+    public void setFolder(Folder folder) { this.folder = folder; }
 }
