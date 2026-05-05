@@ -1,0 +1,90 @@
+package com.siddharth.simplynotes.controller;
+
+import com.siddharth.simplynotes.entity.User;
+import com.siddharth.simplynotes.entity.Workspace;
+import com.siddharth.simplynotes.repository.UserRepository;
+import com.siddharth.simplynotes.repository.WorkspaceRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/workspaces")
+@CrossOrigin(origins = "*")
+public class WorkspaceController {
+
+    private final WorkspaceRepository workspaceRepository;
+    private final UserRepository userRepository;
+
+    public WorkspaceController(WorkspaceRepository workspaceRepository, UserRepository userRepository) {
+        this.workspaceRepository = workspaceRepository;
+        this.userRepository = userRepository;
+    }
+
+    // 🔒 DTO to keep the JSON response clean and secure
+    public static class WorkspaceDTO {
+        public Long id;
+        public String name;
+        public String icon;
+
+        public WorkspaceDTO(Workspace workspace) {
+            this.id = workspace.getId();
+            this.name = workspace.getName();
+            this.icon = workspace.getIcon();
+        }
+    }
+
+    // 🌐 GET ALL WORKSPACES FOR THE LOGGED-IN USER
+    @GetMapping
+    public ResponseEntity<?> getWorkspaces(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
+
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+
+        // Fetch user's workspaces
+        List<Workspace> workspaces = workspaceRepository.findByUser(user);
+
+        // Convert to DTOs
+        List<WorkspaceDTO> response = workspaces.stream()
+                .map(WorkspaceDTO::new)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ➕ CREATE A NEW WORKSPACE
+    @PostMapping
+    public ResponseEntity<?> createWorkspace(@RequestBody Workspace request, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
+
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+
+        // Create and save new workspace
+        Workspace newWorkspace = new Workspace();
+        newWorkspace.setName(request.getName() != null ? request.getName() : "Untitled Workspace");
+        newWorkspace.setIcon(request.getIcon() != null ? request.getIcon() : "layout"); // Default icon
+        newWorkspace.setUser(user);
+
+        Workspace saved = workspaceRepository.save(newWorkspace);
+
+        return ResponseEntity.ok(new WorkspaceDTO(saved));
+    }
+}
