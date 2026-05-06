@@ -29,6 +29,9 @@ public class Note {
     @JoinColumn(name = "workspace_id")
     @JsonIgnore
     private Workspace workspace;
+    
+ @Column(name = "is_favorite")
+    private Boolean isFavorite = false;
 
     // getters
     public Long getId() { return id; }
@@ -37,6 +40,9 @@ public class Note {
     public User getUser() { return user; }
     public Folder getFolder() { return folder; }
     public Workspace getWorkspace() { return workspace; } // Added getter
+  public Boolean getIsFavorite() {
+        return isFavorite == null ? false : isFavorite;
+    }
 
     // setters
     public void setId(Long id) { this.id = id; }
@@ -45,4 +51,7 @@ public class Note {
     public void setUser(User user) { this.user = user; }
     public void setFolder(Folder folder) { this.folder = folder; }
     public void setWorkspace(Workspace workspace) { this.workspace = workspace; } // Added setter
+    public void setIsFavorite(Boolean favorite) {
+        this.isFavorite = favorite;
+    }
 }

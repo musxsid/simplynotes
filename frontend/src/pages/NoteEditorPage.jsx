@@ -1,3 +1,6 @@
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   Undo2,
   Redo2,
@@ -14,15 +17,12 @@ import {
   CheckCircle2,
   Loader2
 } from "lucide-react";
+
+import { getNoteById, updateNote, createNote, uploadImage } from "../services/notesService";
 import { getFolders } from "../services/folderService";
 import AIPanel from "../components/ai/AIPanel";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { getNoteById, updateNote, createNote } from "../services/notesService";
-import toast from "react-hot-toast";
-
-// ⚠️ Temporarily removed FloatingMenu and BubbleMenu to fix Vite error
+// Tiptap imports
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -47,6 +47,24 @@ function NoteEditorPage() {
   const [lastSaved, setLastSaved] = useState(null);
   const [editorContent, setEditorContent] = useState("");
 
+  // 🔥 Reference for our hidden file picker
+  const fileInputRef = useRef(null);
+
+  // 🔥 Function to handle the actual uploading
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    const toastId = toast.loading("Uploading image...");
+    try {
+      const res = await uploadImage(file);
+      // Insert the returned URL into the editor
+      editor.chain().focus().setImage({ src: res.url || res.data.url }).run();
+      toast.success("Image added!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload image", { id: toastId });
+    }
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -54,16 +72,29 @@ function NoteEditorPage() {
       TextStyle,
       Color,
       FontFamily,
-      Link,
-      Image,
+      Link.configure({ openOnClick: false }),
+      Image.configure({ inline: true, allowBase64: true }), // 🔥 Make sure Image is configured properly
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
     ],
     content: "",
-    // 🔥 Listen for editor updates to trigger auto-save
     onUpdate: ({ editor }) => {
       setEditorContent(editor.getHTML());
+    },
+    // 🔥 ADD THIS TO CATCH DRAG AND DROP
+    editorProps: {
+      handleDrop: function (view, event, slice, moved) {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
+          const file = event.dataTransfer.files[0];
+          if (file.type.startsWith("image/")) {
+            event.preventDefault(); // Stop the browser from opening the image in a new tab
+            handleImageUpload(file); // Upload it!
+            return true;
+          }
+        }
+        return false;
+      },
     },
   });
 
@@ -101,7 +132,7 @@ function NoteEditorPage() {
     fetchNote();
   }, [id, editor]);
 
-  // 🔥 SAVE FUNCTION (Memoized for Auto-Save)
+  // SAVE FUNCTION
   const handleSave = useCallback(async (isManual = false) => {
     if (!editor) return;
     
@@ -114,14 +145,12 @@ function NoteEditorPage() {
       };
 
       if (id === "new") {
-        // If manual save on new note, create it and redirect to its new URL
         if (isManual) {
           const res = await createNote(payload);
           toast.success("Note created");
           navigate(`/notes/${res.data.id}`, { replace: true });
         }
       } else {
-        // Update existing note
         await updateNote(id, payload);
         const now = new Date();
         setLastSaved(`Saved at ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`);
@@ -134,14 +163,13 @@ function NoteEditorPage() {
     }
   }, [id, note.title, editor, selectedFolder, navigate]);
 
-  // 🔥 AUTO-SAVE (DEBOUNCING)
+  // AUTO-SAVE (DEBOUNCING)
   useEffect(() => {
-    // Only auto-save if it's an existing note (prevents creating blank drafts)
     if (id === "new") return;
 
     const timeoutId = setTimeout(() => {
       handleSave(false);
-    }, 1500); // Waits 1.5 seconds after typing stops
+    }, 1500);
 
     return () => clearTimeout(timeoutId);
   }, [note.title, editorContent, selectedFolder, handleSave, id]);
@@ -150,6 +178,15 @@ function NoteEditorPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+
+      {/* 🔥 HIDDEN FILE INPUT */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={(e) => handleImageUpload(e.target.files[0])} 
+        accept="image/*" 
+        className="hidden" 
+      />
 
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
@@ -161,7 +198,6 @@ function NoteEditorPage() {
         </button>
 
         <div className="flex items-center gap-4">
-          {/* AUTO-SAVE STATUS */}
           {id !== "new" && (
             <div className="text-xs text-text-secondary flex items-center gap-1">
               {isSaving ? (
@@ -203,34 +239,95 @@ function NoteEditorPage() {
         </select>
       </div>
 
-      {/* STATIC TOOLBAR (Added back since we removed the floating ones) */}
+      {/* FULL STATIC TOOLBAR */}
       <div className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-t-2xl px-4 py-3 border-b flex flex-wrap items-center gap-4">
         
-        <div className="flex items-center gap-1 pr-4 border-r border-border dark:border-border-dark">
-          <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary" onClick={() => editor.chain().focus().undo().run()}><Undo2 size={18} /></button>
-          <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary" onClick={() => editor.chain().focus().redo().run()}><Redo2 size={18} /></button>
+        {/* HISTORY */}
+        <div className="flex items-center gap-1 pr-4 border-r border-border/50 dark:border-border-dark/50">
+          <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary transition-colors" onClick={() => editor.chain().focus().undo().run()}><Undo2 size={18} /></button>
+          <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary transition-colors" onClick={() => editor.chain().focus().redo().run()}><Redo2 size={18} /></button>
         </div>
 
-        <div className="flex items-center gap-1 pr-4 border-r border-border dark:border-border-dark">
-          <button className={`p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark ${editor.isActive('bold') ? 'text-text-primary bg-muted dark:bg-muted-dark' : 'text-text-secondary'}`} onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={18} /></button>
-          <button className={`p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark ${editor.isActive('italic') ? 'text-text-primary bg-muted dark:bg-muted-dark' : 'text-text-secondary'}`} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={18} /></button>
-          <button className={`p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark ${editor.isActive('underline') ? 'text-text-primary bg-muted dark:bg-muted-dark' : 'text-text-secondary'}`} onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon size={18} /></button>
+        {/* FONT & HEADINGS */}
+        <div className="flex items-center gap-2 pr-4 border-r border-border/50 dark:border-border-dark/50">
+          <select
+            className="bg-transparent text-sm font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary dark:hover:text-text-darkPrimary transition-colors"
+            onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
+          >
+            <option>Arial</option>
+            <option>Times New Roman</option>
+          </select>
+
+          <select
+            className="bg-transparent text-sm font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary dark:hover:text-text-darkPrimary transition-colors"
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "p") editor.chain().focus().setParagraph().run();
+              else editor.chain().focus().toggleHeading({ level: Number(v) }).run();
+            }}
+          >
+            <option value="p">Normal</option>
+            <option value="1">Heading 1</option>
+            <option value="2">Heading 2</option>
+          </select>
         </div>
 
-        <div className="flex items-center gap-1 pr-4 border-r border-border dark:border-border-dark">
-          <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-          <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-          <button className={`p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark ${editor.isActive('bulletList') ? 'text-text-primary bg-muted dark:bg-muted-dark' : 'text-text-secondary'}`} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={18} /></button>
+        {/* TEXT FORMATTING & COLOR */}
+        <div className="flex items-center gap-1 pr-4 border-r border-border/50 dark:border-border-dark/50">
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={18} /></button>
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={18} /></button>
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive('underline') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon size={18} /></button>
+          
+          <div className="relative flex items-center ml-1">
+            <input
+              type="color"
+              className="w-6 h-6 p-0 border-0 rounded cursor-pointer bg-transparent"
+              onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+              title="Text Color"
+            />
+          </div>
         </div>
 
-        <button onClick={() => setAiOpen(true)} className="ml-auto flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm shadow hover:opacity-90 transition">
+        {/* ALIGNMENT */}
+        <div className="flex items-center gap-1 pr-4 border-r border-border/50 dark:border-border-dark/50">
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().setTextAlign('left').run()}><AlignLeft size={18} /></button>
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().setTextAlign('center').run()}><AlignCenter size={18} /></button>
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().setTextAlign('right').run()}><AlignRight size={18} /></button>
+        </div>
+
+        {/* LISTS & MEDIA */}
+        <div className="flex items-center gap-1">
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={18} /></button>
+          <button className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={18} /></button>
+          
+          <div className="w-px h-5 bg-border/50 dark:bg-border-dark/50 mx-1"></div>
+
+          <button className="p-1.5 rounded text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition-colors" onClick={() => { const url = prompt("Enter URL"); if (url) editor.chain().focus().setLink({ href: url }).run(); }}><LinkIcon size={18} /></button>
+          
+          {/* 🔥 MODIFIED IMAGE BUTTON TO TRIGGER FILE PICKER */}
+          <button 
+            className="p-1.5 rounded text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition-colors" 
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImageIcon size={18} />
+          </button>
+        </div>
+
+        {/* AI BUTTON */}
+        <button onClick={() => setAiOpen(true)} className="ml-auto flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium shadow-sm hover:shadow hover:opacity-90 transition-all">
           ✨ AI Assist
         </button>
       </div>
 
       {/* EDITOR CONTAINER */}
       <div className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-b-2xl border-t-0 min-h-[500px] shadow-sm pb-10">
-        <EditorContent editor={editor} className="prose prose-zinc dark:prose-invert max-w-none p-8 outline-none" />
+        <EditorContent 
+          editor={editor} 
+          className="
+            prose prose-zinc dark:prose-invert max-w-none p-8 outline-none 
+            prose-img:rounded-xl prose-img:shadow-md prose-img:max-w-full prose-img:max-h-[500px] prose-img:mx-auto prose-img:object-contain
+          " 
+        />
       </div>
 
       <AIPanel open={aiOpen} onClose={() => setAiOpen(false)} onAction={(type) => console.log("AI Action:", type)} />

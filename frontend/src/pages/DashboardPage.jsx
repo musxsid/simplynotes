@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Search, FileText, Plus } from "lucide-react"; // 🔥 Added Icons
+import { Search, FileText, Plus, Star } from "lucide-react";
 
 import { getNotes, deleteNote } from "../services/notesService";
 import { getFolders } from "../services/folderService";
@@ -19,6 +19,9 @@ function DashboardPage() {
 
   const params = new URLSearchParams(location.search);
   const activeFolder = params.get("folder");
+  
+  // 🔥 Extract favorites state from URL
+  const isFavoritesActive = params.get("favorites") === "true";
 
   // FETCH FOLDERS
   useEffect(() => {
@@ -47,12 +50,11 @@ function DashboardPage() {
     }
   };
 
-  // FETCH ON MOUNT
+ // FETCH ON MOUNT & WHEN SWITCHING VIEWS
   useEffect(() => {
     fetchNotes();
-  }, []);
-
-  // 🔥 LISTEN FOR WORKSPACE CHANGES (from Sidebar)
+  }, [isFavoritesActive, activeFolder]);
+  // LISTEN FOR WORKSPACE CHANGES (from Sidebar)
   useEffect(() => {
     const handleWorkspaceChange = () => {
       fetchNotes();
@@ -63,7 +65,7 @@ function DashboardPage() {
     return () => window.removeEventListener("workspaceChanged", handleWorkspaceChange);
   }, []);
 
-  // GROUP NOTES
+  // 🔥 GROUP AND FILTER NOTES
   const groupedNotes = useMemo(() => {
     const map = {};
 
@@ -71,8 +73,12 @@ function DashboardPage() {
       const folderId = note.folder?.id;
       const folderName = note.folder?.name || "Ungrouped";
 
+      // 1. Filter by Folder
       if (activeFolder && String(folderId) !== activeFolder) return;
 
+      // 2. 🔥 Filter by Favorites
+      if (isFavoritesActive && note.isFavorite !== true && note.favorite !== true) return;
+      // 3. Filter by Search Query
       if (
         query &&
         !note.title?.toLowerCase().includes(query.toLowerCase()) &&
@@ -86,7 +92,7 @@ function DashboardPage() {
     });
 
     return map;
-  }, [notes, activeFolder, query]);
+  }, [notes, activeFolder, isFavoritesActive, query]);
 
   // DELETE NOTE
   const handleDelete = useCallback(async (note) => {
@@ -112,14 +118,18 @@ function DashboardPage() {
   return (
     <div className="w-full max-w-6xl mx-auto px-8 py-10">
 
-      {/* 🔥 PREMIUM HEADER */}
+      {/* PREMIUM HEADER */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-text-primary dark:text-text-darkPrimary">
-            Your Notes
+          {/* 🔥 Dynamic Header Title based on Favorites */}
+          <h1 className="text-4xl font-extrabold tracking-tight text-text-primary dark:text-text-darkPrimary flex items-center gap-3">
+            {isFavoritesActive && <Star size={32} className="text-yellow-500 fill-yellow-500" />}
+            {isFavoritesActive ? "Your Favorites" : "Your Notes"}
           </h1>
           <p className="text-[15px] text-text-secondary mt-2">
-            Capture ideas, stay organized, and focus on what matters.
+            {isFavoritesActive 
+              ? "Your starred and most important ideas." 
+              : "Capture ideas, stay organized, and focus on what matters."}
           </p>
         </div>
 
@@ -133,7 +143,7 @@ function DashboardPage() {
         </motion.button>
       </div>
 
-      {/* 🔥 SLEEK SEARCH BAR */}
+      {/* SLEEK SEARCH BAR */}
       {notes.length > 0 && (
         <div className="relative mb-12 max-w-xl">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary opacity-70" />
@@ -147,7 +157,7 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* 🔥 PREMIUM EMPTY STATE */}
+      {/* PREMIUM EMPTY STATE */}
       {!loading && notes.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[50vh] text-center max-w-md mx-auto">
           <div className="w-20 h-20 bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-3xl flex items-center justify-center mb-6 shadow-sm">
@@ -167,10 +177,18 @@ function DashboardPage() {
           </button>
         </div>
       ) : (
-        /* 🔥 GROUPED NOTES STYLING */
+        /* GROUPED NOTES STYLING */
         Object.keys(groupedNotes).length === 0 ? (
-          <div className="text-center py-20">
-             <p className="text-text-secondary text-[15px]">No notes match your search.</p>
+          <div className="text-center py-20 flex flex-col items-center">
+             {isFavoritesActive ? (
+                <>
+                  <Star size={48} className="text-text-secondary opacity-20 mb-4" />
+                  <p className="text-text-primary font-medium text-[16px]">No favorites yet</p>
+                  <p className="text-text-secondary text-[14px] mt-1">Star a note to see it here.</p>
+                </>
+             ) : (
+                <p className="text-text-secondary text-[15px]">No notes match your search.</p>
+             )}
           </div>
         ) : (
           Object.entries(groupedNotes).map(([folderName, notesGroup]) => (

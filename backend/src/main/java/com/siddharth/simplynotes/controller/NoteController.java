@@ -47,12 +47,14 @@ public class NoteController {
         public Long id;
         public String title;
         public String content;
+        public Boolean isFavorite;
         public FolderDTO folder;
 
         public NoteDTO(Note note) {
             this.id = note.getId();
             this.title = note.getTitle();
             this.content = note.getContent();
+            this.isFavorite = note.getIsFavorite();
             if (note.getFolder() != null) {
                 this.folder = new FolderDTO(note.getFolder().getId(), note.getFolder().getName());
             }
@@ -177,5 +179,51 @@ public class NoteController {
         if (!note.getUser().getUsername().equals(authentication.getName())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         noteRepository.delete(note);
         return ResponseEntity.ok("Deleted");
+    }
+
+    // ⭐ TOGGLE FAVORITE
+   // ⭐ TOGGLE FAVORITE (Changed to PUT to bypass CORS blocks)
+    @PutMapping("/{id}/favorite")
+    public ResponseEntity<?> toggleFavorite(@PathVariable Long id, Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        
+        Note note = noteRepository.findById(id).orElse(null);
+        if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        
+        // Ensure user owns the note
+        if (!note.getUser().getUsername().equals(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        // Safely flip the boolean, defaulting to true if it was somehow null
+        Boolean currentStatus = note.getIsFavorite();
+        note.setIsFavorite(currentStatus == null ? true : !currentStatus);
+        
+        Note saved = noteRepository.save(note);
+        return ResponseEntity.ok(new NoteDTO(saved));
+    }
+    // ⭐ MOVE NOTE TO FOLDER
+    @PutMapping("/{id}/folder/{folderId}")
+    public ResponseEntity<?> moveNoteToFolder(@PathVariable Long id, @PathVariable Long folderId, Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        
+        Note note = noteRepository.findById(id).orElse(null);
+        if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        
+        if (!note.getUser().getUsername().equals(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        // Handle moving to "All Notes" (ungrouped) by passing 0 as folderId
+        if (folderId == 0) {
+            note.setFolder(null);
+        } else {
+            Folder folder = folderRepository.findById(folderId).orElse(null);
+            if (folder == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Folder not found");
+            note.setFolder(folder);
+        }
+
+        Note saved = noteRepository.save(note);
+        return ResponseEntity.ok(new NoteDTO(saved));
     }
 }

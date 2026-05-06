@@ -54,3 +54,19 @@ export const login = (data) => {
 export const signup = (data) => {
   return axios.post(`${API}/auth/register`, data);
 };
+export const toggleFavoriteNote = (id) => {
+  return axios.put(`${API}/notes/${id}/favorite`, {}, getAuthHeaders());
+};
+export const moveNoteToFolder = (noteId, folderId) => {
+  // We use folderId 0 to represent removing it from a folder
+  const targetFolderId = folderId === null ? 0 : folderId; 
+  return axios.put(`${API}/notes/${noteId}/folder/${targetFolderId}`, {}, getAuthHeaders());
+};
+// ⭐ UPLOAD IMAGE
+export const uploadImage = (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // We use FormData to send files, so we pass it directly to axios
+  return axios.post(`${API}/upload/image`, formData, getAuthHeaders());
+};
