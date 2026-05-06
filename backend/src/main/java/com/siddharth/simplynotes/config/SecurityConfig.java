@@ -37,6 +37,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/error").permitAll()
+                
+                // 🔥 NEW: Allow the world to see public notes if they have the secret token!
+                .requestMatchers("/api/notes/public/**").permitAll() 
+                
                 .anyRequest().authenticated()
             )
 

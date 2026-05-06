@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   FileText, Star, Sparkles, Settings, LogOut,
   Moon, Sun, Plus, ChevronDown, Check,
-  Briefcase, Folder, LayoutGrid, Trash2 // 🔥 Added Trash2
+  Briefcase, Folder, LayoutGrid, Trash2
 } from "lucide-react";
 import FolderCreateModal from "../ui/FolderCreateModal";
 import CreateWorkspaceModal from "../ui/CreateWorkspaceModal";
@@ -10,12 +10,15 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import axios from "axios";
-import { deleteFolder } from "../../services/folderService"; // 🔥 Imported delete function
+import { deleteFolder } from "../../services/folderService";
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
+  
+  // 🔥 State for our custom delete modal
+  const [folderToDelete, setFolderToDelete] = useState(null);
 
   const ICON_SIZE = 20;
 
@@ -127,28 +130,30 @@ const Sidebar = () => {
     }
   };
 
-  // 🔥 NEW: Folder Delete Handler
-  const handleDeleteFolder = async (e, folderId, folderName) => {
-    e.stopPropagation(); // Stop the click from navigating to the folder
-    
-    // Add a simple confirmation so users don't accidentally delete
-    if (!window.confirm(`Are you sure you want to delete the "${folderName}" folder? Notes inside will become ungrouped.`)) {
-      return;
-    }
+  // 🔥 NEW: Opens the custom modal instead of browser popup
+  const promptDeleteFolder = (e, folderId, folderName) => {
+    e.stopPropagation();
+    setFolderToDelete({ id: folderId, name: folderName });
+  };
 
+  // 🔥 NEW: Actually executes the deletion when confirmed
+  const executeDeleteFolder = async () => {
+    if (!folderToDelete) return;
+    
     try {
-      await deleteFolder(folderId);
+      await deleteFolder(folderToDelete.id);
       toast.success("Folder deleted");
       
-      // If they deleted the folder they were currently looking at, kick them back to "All Notes"
-      if (activeFolder === folderId) {
+      if (activeFolder === folderToDelete.id) {
         setActiveFolder(null);
         navigate("/dashboard");
       }
       
-      getFolders(activeWorkspace.id); // Refresh the list
+      getFolders(activeWorkspace.id); 
     } catch (err) {
       toast.error("Failed to delete folder");
+    } finally {
+      setFolderToDelete(null); // Close the modal
     }
   };
 
@@ -323,7 +328,6 @@ const Sidebar = () => {
                   </div>
 
                   {folders.map((f) => (
-                    // 🔥 NEW: Added 'group' class and flex layout for the trash icon
                     <div
                       key={f.id}
                       onClick={() => { setActiveFolder(f.id); navigate(`/dashboard?folder=${f.id}`); }}
@@ -338,9 +342,9 @@ const Sidebar = () => {
                         <span className="truncate">{f.name}</span>
                       </div>
                       
-                      {/* 🔥 NEW: Trash Icon (Only visible on hover) */}
+                      {/* 🔥 CHANGED: Now calls promptDeleteFolder */}
                       <button
-                        onClick={(e) => handleDeleteFolder(e, f.id, f.name)}
+                        onClick={(e) => promptDeleteFolder(e, f.id, f.name)}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all flex-shrink-0"
                         title="Delete folder"
                       >
@@ -388,6 +392,45 @@ const Sidebar = () => {
           navigate("/workspaces"); 
         }} 
       />
+
+      {/* 🔥 NEW: Premium Custom Delete Modal placed right here! */}
+      <AnimatePresence>
+        {folderToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center"
+            >
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-text-primary dark:text-text-darkPrimary mb-2 tracking-tight">
+                Delete Folder?
+              </h3>
+              <p className="text-[15px] text-text-secondary mb-8 leading-relaxed">
+                Are you sure you want to delete the <strong className="text-text-primary dark:text-text-darkPrimary">"{folderToDelete.name}"</strong> folder? Any notes inside will become ungrouped.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setFolderToDelete(null)}
+                  className="flex-1 py-3 rounded-xl font-bold text-[14px] bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary hover:opacity-80 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeDeleteFolder}
+                  className="flex-1 py-3 rounded-xl font-bold text-[14px] bg-red-500 text-white hover:bg-red-600 transition shadow-lg shadow-red-500/20 active:scale-95"
+                >
+                  Delete Folder
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </aside>
   );
 };

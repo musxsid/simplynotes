@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -24,7 +25,7 @@ public class NoteController {
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
-    private final WorkspaceRepository workspaceRepository; // 🔥 NEW
+    private final WorkspaceRepository workspaceRepository;
 
     public NoteController(NoteRepository noteRepository, 
                           UserRepository userRepository, 
@@ -36,7 +37,6 @@ public class NoteController {
         this.workspaceRepository = workspaceRepository;
     }
 
-    // DTOs kept exactly as they were
     public static class FolderDTO {
         public Long id;
         public String name;
@@ -48,6 +48,8 @@ public class NoteController {
         public String title;
         public String content;
         public Boolean isFavorite;
+        public Boolean isPublic;       // 🔥 NEW
+        public String shareToken;      // 🔥 NEW
         public FolderDTO folder;
 
         public NoteDTO(Note note) {
@@ -55,6 +57,8 @@ public class NoteController {
             this.title = note.getTitle();
             this.content = note.getContent();
             this.isFavorite = note.getIsFavorite();
+            this.isPublic = note.getIsPublic();       // 🔥 NEW
+            this.shareToken = note.getShareToken();   // 🔥 NEW
             if (note.getFolder() != null) {
                 this.folder = new FolderDTO(note.getFolder().getId(), note.getFolder().getName());
             }
@@ -76,10 +80,9 @@ public class NoteController {
         }
     }
 
-    // 🔍 GET ALL NOTES (Upgraded for Workspaces)
     @GetMapping
     public ResponseEntity<?> getNotes(
-            @RequestParam(required = false) Long workspaceId, // 🔥 NEW Optional Param
+            @RequestParam(required = false) Long workspaceId, 
             Authentication authentication) {
             
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
@@ -89,7 +92,6 @@ public class NoteController {
 
         List<Note> notes;
 
-        // 🔥 NEW LOGIC: Filter by workspace if provided
         if (workspaceId != null) {
             Workspace workspace = workspaceRepository.findById(workspaceId).orElse(null);
             if (workspace == null || !workspace.getUser().getId().equals(user.getId())) {
@@ -97,7 +99,6 @@ public class NoteController {
             }
             notes = noteRepository.findByWorkspace(workspace);
         } else {
-            // Fallback: Get the user's first workspace
             List<Workspace> userWorkspaces = workspaceRepository.findByUser(user);
             if (!userWorkspaces.isEmpty()) {
                 notes = noteRepository.findByWorkspace(userWorkspaces.get(0));
@@ -110,10 +111,9 @@ public class NoteController {
         return ResponseEntity.ok(response);
     }
 
-    // ➕ CREATE NOTE (Upgraded for Workspaces)
     @PostMapping
     public ResponseEntity<?> addNote(
-            @RequestParam(required = false) Long workspaceId, // 🔥 NEW Optional Param
+            @RequestParam(required = false) Long workspaceId,
             @RequestBody Note note, 
             Authentication authentication) {
             
@@ -122,13 +122,11 @@ public class NoteController {
         User user = userRepository.findByUsername(authentication.getName()).orElse(null);
         note.setUser(user);
 
-        // Map folder if provided
         if (note.getFolder() != null && note.getFolder().getId() != null) {
             Folder folder = folderRepository.findById(note.getFolder().getId()).orElse(null);
             note.setFolder(folder);
         }
 
-        // 🔥 NEW LOGIC: Assign note to a workspace
         Workspace targetWorkspace = null;
         if (workspaceId != null) {
             targetWorkspace = workspaceRepository.findById(workspaceId).orElse(null);
@@ -147,7 +145,6 @@ public class NoteController {
         return ResponseEntity.ok(new NoteDTO(saved));
     }
 
-    // ✏️ UPDATE NOTE
     @PutMapping("/{id}")
     public ResponseEntity<?> updateNote(@PathVariable Long id, @RequestBody Note updatedNote, Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
@@ -170,7 +167,6 @@ public class NoteController {
         return ResponseEntity.ok(new NoteDTO(saved));
     }
 
-    // ❌ DELETE NOTE
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteNote(@PathVariable Long id, Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
@@ -181,8 +177,6 @@ public class NoteController {
         return ResponseEntity.ok("Deleted");
     }
 
-    // ⭐ TOGGLE FAVORITE
-   // ⭐ TOGGLE FAVORITE (Changed to PUT to bypass CORS blocks)
     @PutMapping("/{id}/favorite")
     public ResponseEntity<?> toggleFavorite(@PathVariable Long id, Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
@@ -190,19 +184,17 @@ public class NoteController {
         Note note = noteRepository.findById(id).orElse(null);
         if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
         
-        // Ensure user owns the note
         if (!note.getUser().getUsername().equals(authentication.getName())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
-        // Safely flip the boolean, defaulting to true if it was somehow null
         Boolean currentStatus = note.getIsFavorite();
         note.setIsFavorite(currentStatus == null ? true : !currentStatus);
         
         Note saved = noteRepository.save(note);
         return ResponseEntity.ok(new NoteDTO(saved));
     }
-    // ⭐ MOVE NOTE TO FOLDER
+
     @PutMapping("/{id}/folder/{folderId}")
     public ResponseEntity<?> moveNoteToFolder(@PathVariable Long id, @PathVariable Long folderId, Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
@@ -214,7 +206,6 @@ public class NoteController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
-        // Handle moving to "All Notes" (ungrouped) by passing 0 as folderId
         if (folderId == 0) {
             note.setFolder(null);
         } else {
@@ -225,5 +216,44 @@ public class NoteController {
 
         Note saved = noteRepository.save(note);
         return ResponseEntity.ok(new NoteDTO(saved));
+    }
+
+    // 🔥 NEW: Toggle Public Sharing Status
+    @PutMapping("/{id}/share")
+    public ResponseEntity<?> toggleShare(@PathVariable Long id, Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        
+        Note note = noteRepository.findById(id).orElse(null);
+        if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        
+        if (!note.getUser().getUsername().equals(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        // Toggle the boolean
+        Boolean currentStatus = note.getIsPublic();
+        boolean newStatus = (currentStatus == null) ? true : !currentStatus;
+        note.setIsPublic(newStatus);
+        
+        // Generate a unique token if it's being made public and doesn't have one yet
+        if (newStatus && note.getShareToken() == null) {
+            note.setShareToken(UUID.randomUUID().toString());
+        }
+
+        Note saved = noteRepository.save(note);
+        return ResponseEntity.ok(new NoteDTO(saved));
+    }
+
+    // 🔥 NEW: Public API to fetch a shared note (NO AUTH REQUIRED)
+    @GetMapping("/public/{shareToken}")
+    public ResponseEntity<?> getPublicNote(@PathVariable String shareToken) {
+        Note note = noteRepository.findByShareToken(shareToken).orElse(null);
+        
+        // If it doesn't exist, or if the user turned sharing back off, return a 404
+        if (note == null || !note.getIsPublic()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found or is no longer public.");
+        }
+        
+        return ResponseEntity.ok(new NoteDTO(note));
     }
 }

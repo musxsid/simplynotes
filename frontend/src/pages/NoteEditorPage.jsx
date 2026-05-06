@@ -15,14 +15,16 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Globe,
+  Copy 
 } from "lucide-react";
 
-import { getNoteById, updateNote, createNote, uploadImage } from "../services/notesService";
+// 🔥 NEW: Imported generateAIContent
+import { getNoteById, updateNote, createNote, uploadImage, toggleShareNote, generateAIContent } from "../services/notesService";
 import { getFolders } from "../services/folderService";
 import AIPanel from "../components/ai/AIPanel";
 
-// Tiptap imports
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -40,23 +42,25 @@ function NoteEditorPage() {
   const [folders, setFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState("");
   const [note, setNote] = useState({ title: "", content: "" });
+  
+  // 🔥 AI States
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiResult, setAiResult] = useState("");
 
-  // Auto-save states
+  const [isPublic, setIsPublic] = useState(false);
+  const [shareToken, setShareToken] = useState(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [editorContent, setEditorContent] = useState("");
 
-  // 🔥 Reference for our hidden file picker
   const fileInputRef = useRef(null);
 
-  // 🔥 Function to handle the actual uploading
   const handleImageUpload = async (file) => {
     if (!file) return;
     const toastId = toast.loading("Uploading image...");
     try {
       const res = await uploadImage(file);
-      // Insert the returned URL into the editor
       editor.chain().focus().setImage({ src: res.url || res.data.url }).run();
       toast.success("Image added!", { id: toastId });
     } catch (err) {
@@ -73,7 +77,7 @@ function NoteEditorPage() {
       Color,
       FontFamily,
       Link.configure({ openOnClick: false }),
-      Image.configure({ inline: true, allowBase64: true }), // 🔥 Make sure Image is configured properly
+      Image.configure({ inline: true, allowBase64: true }), 
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
@@ -82,14 +86,13 @@ function NoteEditorPage() {
     onUpdate: ({ editor }) => {
       setEditorContent(editor.getHTML());
     },
-    // 🔥 ADD THIS TO CATCH DRAG AND DROP
     editorProps: {
       handleDrop: function (view, event, slice, moved) {
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
           const file = event.dataTransfer.files[0];
           if (file.type.startsWith("image/")) {
-            event.preventDefault(); // Stop the browser from opening the image in a new tab
-            handleImageUpload(file); // Upload it!
+            event.preventDefault(); 
+            handleImageUpload(file); 
             return true;
           }
         }
@@ -98,7 +101,6 @@ function NoteEditorPage() {
     },
   });
 
-  // FETCH FOLDERS
   useEffect(() => {
     const fetchFolders = async () => {
       try {
@@ -111,7 +113,6 @@ function NoteEditorPage() {
     fetchFolders();
   }, []);
 
-  // FETCH NOTE
   useEffect(() => {
     if (!id || id === "new") return;
 
@@ -120,6 +121,9 @@ function NoteEditorPage() {
         const res = await getNoteById(id);
         setNote({ title: res.data.title, content: res.data.content });
         setSelectedFolder(res.data.folder?.id?.toString() || ""); 
+        
+        setIsPublic(res.data.isPublic || false);
+        setShareToken(res.data.shareToken || null);
         
         if (editor && res.data.content) {
           editor.commands.setContent(res.data.content);
@@ -132,7 +136,6 @@ function NoteEditorPage() {
     fetchNote();
   }, [id, editor]);
 
-  // SAVE FUNCTION
   const handleSave = useCallback(async (isManual = false) => {
     if (!editor) return;
     
@@ -163,30 +166,76 @@ function NoteEditorPage() {
     }
   }, [id, note.title, editor, selectedFolder, navigate]);
 
-  // AUTO-SAVE (DEBOUNCING)
   useEffect(() => {
     if (id === "new") return;
-
-    const timeoutId = setTimeout(() => {
-      handleSave(false);
-    }, 1500);
-
+    const timeoutId = setTimeout(() => { handleSave(false); }, 1500);
     return () => clearTimeout(timeoutId);
   }, [note.title, editorContent, selectedFolder, handleSave, id]);
+
+  const handleToggleShare = async () => {
+    if (id === "new") {
+      toast.error("Please save your note first!");
+      return;
+    }
+
+    try {
+      const res = await toggleShareNote(id);
+      setIsPublic(res.data.isPublic);
+      setShareToken(res.data.shareToken);
+      
+      if (res.data.isPublic) {
+        const url = `${window.location.origin}/share/${res.data.shareToken}`;
+        navigator.clipboard.writeText(url);
+        toast.success("Published! Link copied to clipboard.");
+      } else {
+        toast.success("Note is now private.");
+      }
+    } catch (err) {
+      toast.error("Failed to change sharing settings");
+    }
+  };
+
+  const copyPublicLink = () => {
+    if (shareToken) {
+      const url = `${window.location.origin}/share/${shareToken}`;
+      navigator.clipboard.writeText(url);
+      toast.success("Link copied!");
+    }
+  };
+
+  // ✨ NEW: AI Action Handler
+  const handleAIAction = async (actionType) => {
+    if (!editor) return;
+    
+    // Grab the highlighted text from TipTap
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to, '\n');
+
+    try {
+      const res = await generateAIContent(actionType, selectedText);
+      setAiResult(res.data.result);
+    } catch (err) {
+      toast.error("Spark failed to generate a response. Is your API key set up?");
+    }
+  };
+
+  // ✨ NEW: AI Insert Handler
+  const handleAIInsert = () => {
+    if (!editor || !aiResult) return;
+    
+    // Paste Spark's result right where the cursor is, formatted nicely
+    editor.chain().focus().insertContent(`\n\n> **Spark's Response:**\n${aiResult}\n\n`).run();
+    
+    // Close the panel and clear the result
+    setAiOpen(false);
+    setAiResult("");
+  };
 
   if (!editor) return null;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-
-      {/* 🔥 HIDDEN FILE INPUT */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={(e) => handleImageUpload(e.target.files[0])} 
-        accept="image/*" 
-        className="hidden" 
-      />
+      <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e.target.files[0])} accept="image/*" className="hidden" />
 
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
@@ -208,9 +257,35 @@ function NoteEditorPage() {
             </div>
           )}
 
+          {id !== "new" && (
+            <div className="flex items-center gap-2 bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-1 rounded-xl shadow-sm">
+              <button
+                onClick={handleToggleShare}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
+                  isPublic 
+                    ? "bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20" 
+                    : "text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary"
+                }`}
+              >
+                <Globe size={16} />
+                {isPublic ? "Published" : "Publish to Web"}
+              </button>
+              
+              {isPublic && (
+                <button 
+                  onClick={copyPublicLink}
+                  title="Copy Link"
+                  className="p-1.5 rounded-lg text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition"
+                >
+                  <Copy size={16} />
+                </button>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => handleSave(true)}
-            className="bg-accent dark:bg-accent-dark text-white dark:text-background-dark px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 transition"
+            className="bg-accent dark:bg-accent-dark text-white dark:text-background-dark px-5 py-2 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 transition"
           >
             Save Note
           </button>
@@ -304,7 +379,6 @@ function NoteEditorPage() {
 
           <button className="p-1.5 rounded text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition-colors" onClick={() => { const url = prompt("Enter URL"); if (url) editor.chain().focus().setLink({ href: url }).run(); }}><LinkIcon size={18} /></button>
           
-          {/* 🔥 MODIFIED IMAGE BUTTON TO TRIGGER FILE PICKER */}
           <button 
             className="p-1.5 rounded text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition-colors" 
             onClick={() => fileInputRef.current?.click()}
@@ -313,7 +387,7 @@ function NoteEditorPage() {
           </button>
         </div>
 
-        {/* AI BUTTON */}
+        {/* ✨ AI BUTTON */}
         <button onClick={() => setAiOpen(true)} className="ml-auto flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium shadow-sm hover:shadow hover:opacity-90 transition-all">
           ✨ AI Assist
         </button>
@@ -330,7 +404,14 @@ function NoteEditorPage() {
         />
       </div>
 
-      <AIPanel open={aiOpen} onClose={() => setAiOpen(false)} onAction={(type) => console.log("AI Action:", type)} />
+      {/* ✨ AI PANEL MOUNTED WITH PROPS */}
+      <AIPanel 
+        open={aiOpen} 
+        onClose={() => { setAiOpen(false); setAiResult(""); }} 
+        onAction={handleAIAction} 
+        result={aiResult}
+        onInsert={handleAIInsert}
+      />
     </div>
   );
 }

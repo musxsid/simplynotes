@@ -10,8 +10,10 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import DashboardPage from "./pages/DashboardPage";
 import NoteEditorPage from "./pages/NoteEditorPage";
-// 🔥 Import the new hub page
 import WorkspacesHubPage from "./pages/WorkspacesHubPage"; 
+
+// 🔥 CRITICAL: Make sure PublicNotePage is imported!
+import PublicNotePage from "./pages/PublicNotePage"; 
 
 const NO_SIDEBAR_ROUTES = ["/", "/login", "/signup"];
 
@@ -19,10 +21,11 @@ function AppLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const hideSidebar = NO_SIDEBAR_ROUTES.includes(location.pathname);
+  // 🔥 THE FIX: This tells React to HIDE the sidebar if the URL contains "/share"
+  const hideSidebar = NO_SIDEBAR_ROUTES.includes(location.pathname) || location.pathname.startsWith('/share');
 
   if (hideSidebar) {
-    return <div className="app-bg">{children}</div>;
+    return <div className="app-bg min-h-screen">{children}</div>;
   }
 
   return (
@@ -39,10 +42,13 @@ function AppLayout({ children }) {
 
 function App() {
   const location = useLocation();
+  
+  // 🔥 THE FIX: Also hide the Ctrl+K search bar for public users!
+  const isPublicRoute = location.pathname.startsWith('/share');
 
   return (
     <>
-      <OmniSearch />
+      {!isPublicRoute && <OmniSearch />}
       <AppLayout>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
@@ -52,9 +58,10 @@ function App() {
 
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/notes/:id" element={<ProtectedRoute><NoteEditorPage /></ProtectedRoute>} />
-            
-            {/* 🔥 The New Hub Route */}
             <Route path="/workspaces" element={<ProtectedRoute><WorkspacesHubPage /></ProtectedRoute>} />
+            
+            {/* 🔥 THE FIX: This registers the public page so it stops showing a blank screen */}
+            <Route path="/share/:token" element={<PublicNotePage />} />
           </Routes>
         </AnimatePresence>
       </AppLayout>

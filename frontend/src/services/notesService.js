@@ -17,7 +17,6 @@ const getAuthHeaders = () => {
 
 export const getNotes = () => {
   const workspaceId = localStorage.getItem("activeWorkspaceId");
-  // This automatically adds ?workspaceId=123 to your GET request
   return axios.get(`${API}/notes`, {
     ...getAuthHeaders(),
     params: { workspaceId } 
@@ -30,7 +29,6 @@ export const getNoteById = (id) => {
 
 export const createNote = (data) => {
   const workspaceId = localStorage.getItem("activeWorkspaceId");
-  // This ensures workspaceId hits your backend's @RequestParam
   return axios.post(`${API}/notes`, data, {
     ...getAuthHeaders(),
     params: { workspaceId } 
@@ -45,6 +43,25 @@ export const deleteNote = (id) => {
   return axios.delete(`${API}/notes/${id}`, getAuthHeaders());
 };
 
+export const toggleFavoriteNote = (id) => {
+  return axios.put(`${API}/notes/${id}/favorite`, {}, getAuthHeaders());
+};
+
+export const moveNoteToFolder = (noteId, folderId) => {
+  const targetFolderId = folderId === null ? 0 : folderId; 
+  return axios.put(`${API}/notes/${noteId}/folder/${targetFolderId}`, {}, getAuthHeaders());
+};
+
+// 🔥 NEW: Toggle Public Sharing
+export const toggleShareNote = (id) => {
+  return axios.put(`${API}/notes/${id}/share`, {}, getAuthHeaders());
+};
+
+// 🔥 NEW: Fetch a Public Note (NO AUTH REQUIRED!)
+export const getPublicNote = (shareToken) => {
+  return axios.get(`${API}/notes/public/${shareToken}`);
+};
+
 // ================= AUTH =================
 
 export const login = (data) => {
@@ -54,19 +71,10 @@ export const login = (data) => {
 export const signup = (data) => {
   return axios.post(`${API}/auth/register`, data);
 };
-export const toggleFavoriteNote = (id) => {
-  return axios.put(`${API}/notes/${id}/favorite`, {}, getAuthHeaders());
-};
-export const moveNoteToFolder = (noteId, folderId) => {
-  // We use folderId 0 to represent removing it from a folder
-  const targetFolderId = folderId === null ? 0 : folderId; 
-  return axios.put(`${API}/notes/${noteId}/folder/${targetFolderId}`, {}, getAuthHeaders());
-};
+
 // ⭐ UPLOAD IMAGE
 export const uploadImage = (file) => {
   const formData = new FormData();
   formData.append("file", file);
-
-  // We use FormData to send files, so we pass it directly to axios
   return axios.post(`${API}/upload/image`, formData, getAuthHeaders());
 };

@@ -1,15 +1,18 @@
 package com.siddharth.simplynotes.controller;
 
 import com.siddharth.simplynotes.entity.Folder;
+import com.siddharth.simplynotes.entity.Note; // 🔥 NEW
 import com.siddharth.simplynotes.entity.User;
 import com.siddharth.simplynotes.entity.Workspace;
 import com.siddharth.simplynotes.repository.FolderRepository;
+import com.siddharth.simplynotes.repository.NoteRepository; // 🔥 NEW
 import com.siddharth.simplynotes.repository.UserRepository;
 import com.siddharth.simplynotes.repository.WorkspaceRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional; // 🔥 NEW
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,20 +24,23 @@ public class FolderController {
 
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
-    private final WorkspaceRepository workspaceRepository; // 🔥 NEW
+    private final WorkspaceRepository workspaceRepository;
+    private final NoteRepository noteRepository; // 🔥 NEW
 
     public FolderController(FolderRepository folderRepository,
                             UserRepository userRepository,
-                            WorkspaceRepository workspaceRepository) {
+                            WorkspaceRepository workspaceRepository,
+                            NoteRepository noteRepository) { // 🔥 NEW
         this.folderRepository = folderRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
+        this.noteRepository = noteRepository;
     }
 
-    // 📂 GET ALL FOLDERS (Upgraded for Workspaces)
+    // 📂 GET ALL FOLDERS (Remains the same)
     @GetMapping
     public ResponseEntity<?> getFolders(
-            @RequestParam(required = false) Long workspaceId, // 🔥 NEW: Optional parameter
+            @RequestParam(required = false) Long workspaceId,
             Authentication authentication) {
             
         if (authentication == null) {
@@ -50,7 +56,6 @@ public class FolderController {
 
         List<Folder> folders;
 
-        // 🔥 NEW LOGIC: Filter by workspace if provided
         if (workspaceId != null) {
             Workspace workspace = workspaceRepository.findById(workspaceId).orElse(null);
             if (workspace == null || !workspace.getUser().getId().equals(user.getId())) {
@@ -58,22 +63,21 @@ public class FolderController {
             }
             folders = folderRepository.findByWorkspace(workspace);
         } else {
-            // Fallback: Get the user's first workspace (Personal Workspace)
             List<Workspace> userWorkspaces = workspaceRepository.findByUser(user);
             if (!userWorkspaces.isEmpty()) {
                 folders = folderRepository.findByWorkspace(userWorkspaces.get(0));
             } else {
-                folders = folderRepository.findByUser(user); // Extreme fallback
+                folders = folderRepository.findByUser(user);
             }
         }
 
         return ResponseEntity.ok(folders);
     }
 
-    // ➕ CREATE FOLDER (Upgraded for Workspaces)
+    // ➕ CREATE FOLDER (Remains the same)
     @PostMapping
     public ResponseEntity<?> createFolder(
-            @RequestParam(required = false) Long workspaceId, // 🔥 NEW: Optional parameter
+            @RequestParam(required = false) Long workspaceId,
             @RequestBody Folder folder,
             Authentication authentication
     ) {
@@ -90,19 +94,16 @@ public class FolderController {
 
         folder.setUser(user);
 
-        // 🔥 NEW LOGIC: Assign folder to a workspace
         Workspace targetWorkspace = null;
         if (workspaceId != null) {
             targetWorkspace = workspaceRepository.findById(workspaceId).orElse(null);
         } else {
-            // Fallback to first workspace if frontend doesn't send an ID yet
             List<Workspace> userWorkspaces = workspaceRepository.findByUser(user);
             if (!userWorkspaces.isEmpty()) {
                 targetWorkspace = userWorkspaces.get(0);
             }
         }
 
-        // Securely link the workspace only if the user owns it
         if (targetWorkspace != null && targetWorkspace.getUser().getId().equals(user.getId())) {
             folder.setWorkspace(targetWorkspace);
         }
@@ -112,8 +113,9 @@ public class FolderController {
         return ResponseEntity.ok(saved);
     }
 
-    // ❌ DELETE FOLDER (Unchanged, kept exactly as you had it)
+    // ❌ DELETE FOLDER (Upgraded to handle nested notes safely)
     @DeleteMapping("/{id}")
+    @Transactional // 🔥 NEW: Required for safely modifying notes before deletion
     public ResponseEntity<?> deleteFolder(
             @PathVariable Long id,
             Authentication authentication
@@ -131,6 +133,15 @@ public class FolderController {
 
         if (!folder.getUser().getUsername().equals(username)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        // 🔥 NEW LOGIC: Safely "ungroup" all notes inside this folder so the database doesn't panic
+        List<Note> notes = folder.getNotes();
+        if (notes != null) {
+            for (Note note : notes) {
+                note.setFolder(null); // Unlink the folder
+                noteRepository.save(note); // Save the note as ungrouped
+            }
         }
 
         folderRepository.delete(folder);
