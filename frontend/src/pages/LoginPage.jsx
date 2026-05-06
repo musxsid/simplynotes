@@ -22,7 +22,16 @@ function LoginPage() {
       const res = await login({ username, password });
       localStorage.setItem("token", res.data.token);
       toast.success("Welcome back");
-      navigate("/work");
+      
+      // 🔥 PINNING LOGIC: Check if they have a pinned workspace
+      const pinnedWorkspaceId = localStorage.getItem("pinnedWorkspaceId");
+      if (pinnedWorkspaceId) {
+        localStorage.setItem("activeWorkspaceId", pinnedWorkspaceId);
+        navigate("/dashboard"); // Teleport directly to their pinned workspace
+      } else {
+        navigate("/workspaces"); // Otherwise, show them the Hub
+      }
+      
     } catch {
       toast.error("Invalid credentials");
     } finally {
@@ -35,7 +44,6 @@ function LoginPage() {
     bg-gradient-to-br from-gray-100 to-gray-200 
     dark:from-gray-900 dark:to-black overflow-hidden">
 
-      {/* 🔥 Soft glow visuals */}
       <div className="absolute w-[500px] h-[500px] bg-blue-500/20 blur-[140px] top-[-120px] left-[-120px] rounded-full"></div>
       <div className="absolute w-[400px] h-[400px] bg-purple-500/20 blur-[140px] bottom-[-120px] right-[-120px] rounded-full"></div>
 
@@ -47,8 +55,6 @@ function LoginPage() {
         border border-white/20 dark:border-gray-700 
         rounded-3xl shadow-2xl p-8 w-96 text-center"
       >
-
-        {/* 🔥 Brand */}
         <h1 className="text-2xl font-semibold mb-2 tracking-tight">
           SimplyNotes
         </h1>
@@ -57,7 +63,6 @@ function LoginPage() {
           Your workspace, organized quietly.
         </p>
 
-        {/* Inputs */}
         <input
           type="text"
           placeholder="Username"
@@ -80,7 +85,6 @@ function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {/* Button */}
         <button
           onClick={handleLogin}
           disabled={loading}
@@ -90,7 +94,6 @@ function LoginPage() {
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        {/* Link */}
         <p className="text-sm mt-5 text-gray-600 dark:text-gray-300">
           New here?{" "}
           <span

@@ -12,6 +12,7 @@ public class Folder {
     private Long id;
 
     private String name;
+    
 
     @ManyToOne
     @JoinColumn(name = "user_id")

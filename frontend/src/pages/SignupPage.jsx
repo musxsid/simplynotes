@@ -21,6 +21,12 @@ function SignupPage() {
       setLoading(true);
       await signup({ username, password });
       toast.success("Account created");
+      
+      // 🔥 THE CLEANUP: Wipe out the old user's data so the new user starts fresh!
+      localStorage.removeItem("token");
+      localStorage.removeItem("activeWorkspaceId");
+      localStorage.removeItem("pinnedWorkspaceId");
+      
       navigate("/login");
     } catch {
       toast.error("Signup failed");

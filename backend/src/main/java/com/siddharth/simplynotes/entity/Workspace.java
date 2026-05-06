@@ -17,6 +17,8 @@ public class Workspace {
     // For that premium UI feel (e.g., storing a lucide icon name or emoji)
     private String icon; 
 
+    private String coverImage;
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
@@ -37,6 +39,9 @@ public class Workspace {
     public User getUser() { return user; }
     public List<Folder> getFolders() { return folders; }
     public List<Note> getNotes() { return notes; }
+    public String getCoverImage() {
+        return coverImage;
+    }
 
     // ===== SETTERS =====
     public void setId(Long id) { this.id = id; }
@@ -45,4 +50,7 @@ public class Workspace {
     public void setUser(User user) { this.user = user; }
     public void setFolders(List<Folder> folders) { this.folders = folders; }
     public void setNotes(List<Note> notes) { this.notes = notes; }
+    public void setCoverImage(String coverImage) {
+        this.coverImage = coverImage;
+    }
 }

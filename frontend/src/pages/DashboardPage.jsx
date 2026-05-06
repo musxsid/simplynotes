@@ -20,7 +20,7 @@ function DashboardPage() {
   const params = new URLSearchParams(location.search);
   const activeFolder = params.get("folder");
   
-  // 🔥 Extract favorites state from URL
+  // Extract favorites state from URL
   const isFavoritesActive = params.get("favorites") === "true";
 
   // FETCH FOLDERS
@@ -44,7 +44,15 @@ function DashboardPage() {
       setNotes(res.data || []);
     } catch (err) {
       console.error("Failed to fetch notes:", err);
-      toast.error("Failed to load notes");
+      
+      // 🔥 THE BOUNCER: If the backend rejects this workspace ID (wrong user, deleted workspace, etc.)
+      if (err.response && (err.response.status === 403 || err.response.status === 404)) {
+        localStorage.removeItem("activeWorkspaceId");
+        toast.error("Please select a workspace to continue.");
+        navigate("/workspaces"); // Kick them to the hub!
+      } else {
+        toast.error("Failed to load notes");
+      }
     } finally {
       setLoading(false);
     }
@@ -52,8 +60,16 @@ function DashboardPage() {
 
  // FETCH ON MOUNT & WHEN SWITCHING VIEWS
   useEffect(() => {
+    // 🔥 THE GATEKEEPER: Check if they even have a workspace selected first!
+    const currentWorkspaceId = localStorage.getItem("activeWorkspaceId");
+    if (!currentWorkspaceId) {
+      navigate("/workspaces");
+      return;
+    }
+    
     fetchNotes();
-  }, [isFavoritesActive, activeFolder]);
+  }, [isFavoritesActive, activeFolder, navigate]);
+
   // LISTEN FOR WORKSPACE CHANGES (from Sidebar)
   useEffect(() => {
     const handleWorkspaceChange = () => {
@@ -65,7 +81,7 @@ function DashboardPage() {
     return () => window.removeEventListener("workspaceChanged", handleWorkspaceChange);
   }, []);
 
-  // 🔥 GROUP AND FILTER NOTES
+  // GROUP AND FILTER NOTES
   const groupedNotes = useMemo(() => {
     const map = {};
 
@@ -76,8 +92,9 @@ function DashboardPage() {
       // 1. Filter by Folder
       if (activeFolder && String(folderId) !== activeFolder) return;
 
-      // 2. 🔥 Filter by Favorites
+      // 2. Filter by Favorites
       if (isFavoritesActive && note.isFavorite !== true && note.favorite !== true) return;
+      
       // 3. Filter by Search Query
       if (
         query &&
@@ -121,7 +138,6 @@ function DashboardPage() {
       {/* PREMIUM HEADER */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div>
-          {/* 🔥 Dynamic Header Title based on Favorites */}
           <h1 className="text-4xl font-extrabold tracking-tight text-text-primary dark:text-text-darkPrimary flex items-center gap-3">
             {isFavoritesActive && <Star size={32} className="text-yellow-500 fill-yellow-500" />}
             {isFavoritesActive ? "Your Favorites" : "Your Notes"}

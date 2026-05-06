@@ -1,23 +1,16 @@
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  FileText,
-  Star,
-  Sparkles,
-  Settings,
-  LogOut,
-  Moon,
-  Sun,
-  Plus,
-  ChevronDown,
-  Check,
-  Briefcase,
-  Folder
+  FileText, Star, Sparkles, Settings, LogOut,
+  Moon, Sun, Plus, ChevronDown, Check,
+  Briefcase, Folder, LayoutGrid, Trash2 // 🔥 Added Trash2
 } from "lucide-react";
 import FolderCreateModal from "../ui/FolderCreateModal";
+import CreateWorkspaceModal from "../ui/CreateWorkspaceModal";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import axios from "axios";
+import { deleteFolder } from "../../services/folderService"; // 🔥 Imported delete function
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -26,21 +19,20 @@ const Sidebar = () => {
 
   const ICON_SIZE = 20;
 
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem("theme") === "dark";
-  });
-
-  // Workspace & Folder State
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const [workspaces, setWorkspaces] = useState([]);
   const [activeWorkspace, setActiveWorkspace] = useState(null);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
-  const [folders, setFolders] = useState([]);
   
+  const [folders, setFolders] = useState([]);
   const [activeFolder, setActiveFolder] = useState(null);
-  const [isFavoritesActive, setIsFavoritesActive] = useState(false); // 🔥 Added Favorites State
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isFavoritesActive, setIsFavoritesActive] = useState(false); 
+  
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
+  
+  const [isFoldersOpen, setIsFoldersOpen] = useState(true);
 
-  // 🔥 Sync active folder AND favorites with URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const folderFromURL = params.get("folder");
@@ -53,7 +45,6 @@ const Sidebar = () => {
     else setIsFavoritesActive(false);
   }, [location]);
 
-  // Dark Mode Toggle
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -82,8 +73,9 @@ const Sidebar = () => {
       const fetchedWorkspaces = res.data || [];
       setWorkspaces(fetchedWorkspaces);
       if (fetchedWorkspaces.length > 0 && !activeWorkspace) {
-        setActiveWorkspace(fetchedWorkspaces[0]);
-        localStorage.setItem("activeWorkspaceId", fetchedWorkspaces[0].id);
+        const storedId = localStorage.getItem("activeWorkspaceId");
+        const match = fetchedWorkspaces.find(w => w.id.toString() === storedId);
+        setActiveWorkspace(match || fetchedWorkspaces[0]);
       }
     } catch (err) {
       console.error("Failed to load workspaces", err);
@@ -108,6 +100,19 @@ const Sidebar = () => {
     if (activeWorkspace) getFolders(activeWorkspace.id);
   }, [activeWorkspace]);
 
+  useEffect(() => {
+    const syncWorkspace = () => {
+      const storedId = localStorage.getItem("activeWorkspaceId");
+      if (storedId && workspaces.length > 0) {
+        const match = workspaces.find(w => w.id.toString() === storedId);
+        if (match) setActiveWorkspace(match);
+      }
+    };
+
+    window.addEventListener("workspaceChanged", syncWorkspace);
+    return () => window.removeEventListener("workspaceChanged", syncWorkspace);
+  }, [workspaces]);
+
   const handleCreateFolder = async (name) => {
     try {
       await axios.post(
@@ -122,9 +127,35 @@ const Sidebar = () => {
     }
   };
 
+  // 🔥 NEW: Folder Delete Handler
+  const handleDeleteFolder = async (e, folderId, folderName) => {
+    e.stopPropagation(); // Stop the click from navigating to the folder
+    
+    // Add a simple confirmation so users don't accidentally delete
+    if (!window.confirm(`Are you sure you want to delete the "${folderName}" folder? Notes inside will become ungrouped.`)) {
+      return;
+    }
+
+    try {
+      await deleteFolder(folderId);
+      toast.success("Folder deleted");
+      
+      // If they deleted the folder they were currently looking at, kick them back to "All Notes"
+      if (activeFolder === folderId) {
+        setActiveFolder(null);
+        navigate("/dashboard");
+      }
+      
+      getFolders(activeWorkspace.id); // Refresh the list
+    } catch (err) {
+      toast.error("Failed to delete folder");
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("activeWorkspaceId");
+    localStorage.removeItem("pinnedWorkspaceId"); 
     toast.success("Logged out");
     navigate("/");
   };
@@ -138,9 +169,7 @@ const Sidebar = () => {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col justify-between px-5 py-8 bg-surface dark:bg-surface-dark border-r border-border dark:border-border-dark z-50">
-      
       <div>
-        {/* BRAND LOGO AREA */}
         <div className="flex items-center gap-3 px-2 mb-8">
           <div className="w-9 h-9 rounded-xl bg-accent dark:bg-accent-dark flex items-center justify-center shadow-lg shadow-accent/10">
             <FileText size={ICON_SIZE} className="text-white dark:text-background-dark" />
@@ -150,15 +179,16 @@ const Sidebar = () => {
           </span>
         </div>
 
-        {/* WORKSPACE SWITCHER */}
         <div className="relative mb-10" ref={dropdownRef}>
           <button
             onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
             className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted dark:hover:bg-muted-dark transition group border border-transparent hover:border-border dark:hover:border-border-dark"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-text-primary/5 dark:bg-text-darkPrimary/10 text-text-primary dark:text-text-darkPrimary flex items-center justify-center">
-                <Briefcase size={ICON_SIZE} />
+              <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-text-primary/5 dark:bg-text-darkPrimary/10 text-text-primary dark:text-text-darkPrimary flex items-center justify-center text-lg font-bold overflow-hidden">
+                {activeWorkspace?.icon?.length > 2 
+                  ? activeWorkspace.icon.charAt(0).toUpperCase() 
+                  : (activeWorkspace?.icon || <Briefcase size={ICON_SIZE} />)}
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-[14px] font-bold text-text-primary dark:text-text-darkPrimary truncate w-28 text-left">
@@ -194,14 +224,26 @@ const Sidebar = () => {
                       }}
                       className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl hover:bg-muted dark:hover:bg-muted-dark transition"
                     >
-                      <span>{ws.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{ws.icon || "💼"}</span>
+                        <span>{ws.name}</span>
+                      </div>
                       {activeWorkspace?.id === ws.id && <Check size={16} className="text-text-primary dark:text-text-darkPrimary" />}
                     </button>
                   ))}
                 </div>
+                
                 <div className="h-px bg-border dark:bg-border-dark my-2"></div>
+                
                 <button 
-                  onClick={() => toast("Workspace creation coming soon!", { icon: "🚧" })}
+                  onClick={() => { setIsWorkspaceDropdownOpen(false); navigate("/workspaces"); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-semibold text-text-secondary hover:text-text-primary rounded-xl transition"
+                >
+                  <LayoutGrid size={18} /> View All Workspaces
+                </button>
+
+                <button 
+                  onClick={() => { setIsWorkspaceDropdownOpen(false); setShowCreateWorkspaceModal(true); }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-semibold text-text-secondary hover:text-text-primary rounded-xl transition"
                 >
                   <Plus size={18} /> Create Workspace
@@ -211,15 +253,11 @@ const Sidebar = () => {
           </AnimatePresence>
         </div>
 
-        {/* 🔥 MAIN NAVIGATION */}
         <div className="mb-8">
           <p className="text-[11px] font-bold text-text-secondary/60 mb-3 uppercase tracking-[0.15em] ml-2">Main</p>
           <div className="space-y-1.5">
             <div
-              onClick={() => {
-                setActiveFolder(null);
-                navigate("/dashboard");
-              }}
+              onClick={() => { setActiveFolder(null); navigate("/dashboard"); }}
               className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition-all ${
                 location.pathname === "/dashboard" && !isFavoritesActive && activeFolder === null
                   ? "bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary shadow-sm"
@@ -229,68 +267,93 @@ const Sidebar = () => {
               <FileText size={ICON_SIZE} /> Notes
             </div>
             
-            {/* 🔥 ACTIVATED FAVORITES BUTTON */}
             <div
-              onClick={() => {
-                setActiveFolder(null);
-                navigate("/dashboard?favorites=true");
-              }}
+              onClick={() => { setActiveFolder(null); navigate("/dashboard?favorites=true"); }}
               className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition-all ${
                 isFavoritesActive
                   ? "bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary shadow-sm"
                   : "text-text-secondary hover:bg-muted/50 dark:hover:bg-muted-dark/50 hover:text-text-primary dark:hover:text-text-darkPrimary"
               }`}
             >
-              <Star 
-                size={ICON_SIZE} 
-                className={isFavoritesActive ? "text-yellow-500 fill-yellow-500" : ""} 
-              /> 
-              Favorites
+              <Star size={ICON_SIZE} className={isFavoritesActive ? "text-yellow-500 fill-yellow-500" : ""} /> Favorites
             </div>
           </div>
         </div>
 
-        {/* FOLDERS LIST */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-3 ml-2">
-            <p className="text-[11px] font-bold text-text-secondary/60 uppercase tracking-[0.15em]">Folders</p>
-            <button onClick={() => setShowCreateModal(true)} className="p-1.5 rounded-lg hover:bg-muted dark:hover:bg-muted-dark transition text-text-secondary">
+          <div className="flex items-center justify-between mb-3 ml-2 group">
+            <div 
+              onClick={() => setIsFoldersOpen(!isFoldersOpen)}
+              className="flex items-center gap-1 cursor-pointer select-none"
+            >
+              <ChevronDown 
+                size={14} 
+                className={`text-text-secondary transition-transform duration-200 ${!isFoldersOpen ? "-rotate-90" : ""}`} 
+              />
+              <p className="text-[11px] font-bold text-text-secondary/60 uppercase tracking-[0.15em] hover:text-text-primary transition-colors">
+                Folders
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowCreateFolderModal(true)} 
+              className="p-1.5 rounded-lg hover:bg-muted dark:hover:bg-muted-dark transition text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100"
+            >
               <Plus size={16} />
             </button>
           </div>
 
-          <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
-            {/* ALL NOTES */}
-            <div
-              onClick={() => { setActiveFolder(null); navigate("/dashboard"); }}
-              className={`px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition ${
-                activeFolder === null && !isFavoritesActive 
-                ? "bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary shadow-sm" 
-                : "text-text-secondary hover:bg-muted/50 dark:hover:bg-muted-dark/50 hover:text-text-primary dark:hover:text-text-darkPrimary"
-              }`}
-            >
-              All Notes
-            </div>
-
-            {/* DYNAMIC FOLDERS */}
-            {folders.map((f) => (
-              <div
-                key={f.id}
-                onClick={() => { setActiveFolder(f.id); navigate(`/dashboard?folder=${f.id}`); }}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition truncate ${
-                  activeFolder === f.id && !isFavoritesActive 
-                  ? "bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary shadow-sm" 
-                  : "text-text-secondary hover:bg-muted/50 dark:hover:bg-muted-dark/50 hover:text-text-primary dark:hover:text-text-darkPrimary"
-                }`}
+          <AnimatePresence>
+            {isFoldersOpen && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
               >
-                <Folder size={ICON_SIZE} className="opacity-70" />
-                {f.name}
-              </div>
-            ))}
-          </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                  <div
+                    onClick={() => { setActiveFolder(null); navigate("/dashboard"); }}
+                    className={`px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition ${
+                      activeFolder === null && !isFavoritesActive 
+                      ? "bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary shadow-sm" 
+                      : "text-text-secondary hover:bg-muted/50 dark:hover:bg-muted-dark/50 hover:text-text-primary dark:hover:text-text-darkPrimary"
+                    }`}
+                  >
+                    All Notes
+                  </div>
+
+                  {folders.map((f) => (
+                    // 🔥 NEW: Added 'group' class and flex layout for the trash icon
+                    <div
+                      key={f.id}
+                      onClick={() => { setActiveFolder(f.id); navigate(`/dashboard?folder=${f.id}`); }}
+                      className={`group flex items-center justify-between px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition ${
+                        activeFolder === f.id && !isFavoritesActive 
+                        ? "bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary shadow-sm" 
+                        : "text-text-secondary hover:bg-muted/50 dark:hover:bg-muted-dark/50 hover:text-text-primary dark:hover:text-text-darkPrimary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 truncate">
+                        <Folder size={ICON_SIZE} className="opacity-70 flex-shrink-0" />
+                        <span className="truncate">{f.name}</span>
+                      </div>
+                      
+                      {/* 🔥 NEW: Trash Icon (Only visible on hover) */}
+                      <button
+                        onClick={(e) => handleDeleteFolder(e, f.id, f.name)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all flex-shrink-0"
+                        title="Delete folder"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* EXPLORE */}
         <div>
           <p className="text-[11px] font-bold text-text-secondary/60 mb-3 uppercase tracking-[0.15em] ml-2">Explore</p>
           <div className="space-y-1.5">
@@ -304,7 +367,6 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* BOTTOM ACTION BUTTONS */}
       <div className="space-y-3 pt-6 border-t border-border dark:border-border-dark">
         <button onClick={() => setDarkMode(!darkMode)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-bold bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary transition hover:opacity-80">
           {darkMode ? <Sun size={ICON_SIZE} /> : <Moon size={ICON_SIZE} />}
@@ -316,7 +378,16 @@ const Sidebar = () => {
         </button>
       </div>
 
-      <FolderCreateModal open={showCreateModal} onClose={() => setShowCreateModal(false)} onCreate={handleCreateFolder} />
+      <FolderCreateModal open={showCreateFolderModal} onClose={() => setShowCreateFolderModal(false)} onCreate={handleCreateFolder} />
+      
+      <CreateWorkspaceModal 
+        open={showCreateWorkspaceModal} 
+        onClose={() => setShowCreateWorkspaceModal(false)} 
+        onCreated={() => {
+          getWorkspaces(); 
+          navigate("/workspaces"); 
+        }} 
+      />
     </aside>
   );
 };

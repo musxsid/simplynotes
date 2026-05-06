@@ -8,4 +8,15 @@ const getAuthHeader = () => ({
   },
 });
 
-export const getFolders = () => axios.get(API, getAuthHeader());
+export const getFolders = () => {
+  const workspaceId = localStorage.getItem("activeWorkspaceId");
+  return axios.get(API, {
+    ...getAuthHeader(),
+    params: { workspaceId } 
+  });
+};
+
+// 🔥 NEW: Add the delete API call
+export const deleteFolder = (id) => {
+  return axios.delete(`${API}/${id}`, getAuthHeader());
+};

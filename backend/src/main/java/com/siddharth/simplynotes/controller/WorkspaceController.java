@@ -30,11 +30,13 @@ public class WorkspaceController {
         public Long id;
         public String name;
         public String icon;
+        public String coverImage; // 🔥 ADDED COVER IMAGE
 
         public WorkspaceDTO(Workspace workspace) {
             this.id = workspace.getId();
             this.name = workspace.getName();
             this.icon = workspace.getIcon();
+            this.coverImage = workspace.getCoverImage(); // 🔥 MAP THE COVER IMAGE
         }
     }
 
@@ -81,10 +83,53 @@ public class WorkspaceController {
         Workspace newWorkspace = new Workspace();
         newWorkspace.setName(request.getName() != null ? request.getName() : "Untitled Workspace");
         newWorkspace.setIcon(request.getIcon() != null ? request.getIcon() : "layout"); // Default icon
+        
+        // 🔥 SAVE THE COVER IMAGE
+        newWorkspace.setCoverImage(request.getCoverImage()); 
+        
         newWorkspace.setUser(user);
 
         Workspace saved = workspaceRepository.save(newWorkspace);
 
         return ResponseEntity.ok(new WorkspaceDTO(saved));
+    }
+
+    // ✏️ UPDATE WORKSPACE
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateWorkspace(@PathVariable Long id, @RequestBody Workspace request, Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        
+        Workspace workspace = workspaceRepository.findById(id).orElse(null);
+        if (workspace == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Workspace not found");
+        
+        // Ensure the user owns this workspace
+        if (!workspace.getUser().getUsername().equals(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        // Update fields if they were provided
+        if (request.getName() != null) workspace.setName(request.getName());
+        if (request.getIcon() != null) workspace.setIcon(request.getIcon());
+        if (request.getCoverImage() != null) workspace.setCoverImage(request.getCoverImage());
+
+        Workspace saved = workspaceRepository.save(workspace);
+        return ResponseEntity.ok(new WorkspaceDTO(saved));
+    }
+
+    // 🗑️ DELETE WORKSPACE
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteWorkspace(@PathVariable Long id, Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        
+        Workspace workspace = workspaceRepository.findById(id).orElse(null);
+        if (workspace == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Workspace not found");
+        
+        // Ensure the user owns this workspace
+        if (!workspace.getUser().getUsername().equals(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        workspaceRepository.delete(workspace);
+        return ResponseEntity.ok().body("Workspace deleted successfully");
     }
 }
