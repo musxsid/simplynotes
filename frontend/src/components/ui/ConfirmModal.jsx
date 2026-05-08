@@ -52,7 +52,7 @@ function ConfirmModal({ open, onClose, onConfirm, title, message }) {
         </div>
       </motion.div>
     </div>,
-    document.body // 🔥 THIS IS THE REAL FIX
+    document.body 
   );
 }
 

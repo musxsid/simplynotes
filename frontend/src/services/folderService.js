@@ -16,7 +16,6 @@ export const getFolders = () => {
   });
 };
 
-// 🔥 NEW: Add the delete API call
 export const deleteFolder = (id) => {
   return axios.delete(`${API}/${id}`, getAuthHeader());
 };

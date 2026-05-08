@@ -5,7 +5,6 @@ import './index.css'
 import App from './App.jsx'
 import { Toaster } from "react-hot-toast";
 
-// 🌙 Apply saved theme BEFORE React renders (prevents flicker)
 const savedTheme = localStorage.getItem("theme");
 if (savedTheme === "dark") {
   document.documentElement.classList.add("dark");

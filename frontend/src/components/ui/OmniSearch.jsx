@@ -161,7 +161,6 @@ const OmniSearch = () => {
                             {note.title || "Untitled"}
                           </span>
                         </div>
-                        {/* Snippet of content */}
                         <div className="pl-8 text-xs text-text-secondary truncate max-w-md">
                           {note.content ? note.content.replace(/<[^>]*>?/gm, '').substring(0, 80) : "No content..."}
                         </div>

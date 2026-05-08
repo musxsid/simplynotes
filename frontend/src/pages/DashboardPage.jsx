@@ -8,6 +8,8 @@ import { getNotes, deleteNote } from "../services/notesService";
 import { getFolders } from "../services/folderService";
 import NotesGrid from "../components/notes/NotesGrid";
 
+import ProfileMenu from "../components/ui/ProfileMenu";
+
 function DashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,10 +22,8 @@ function DashboardPage() {
   const params = new URLSearchParams(location.search);
   const activeFolder = params.get("folder");
   
-  // Extract favorites state from URL
   const isFavoritesActive = params.get("favorites") === "true";
 
-  // FETCH FOLDERS
   useEffect(() => {
     const fetchFolders = async () => {
       try {
@@ -36,7 +36,6 @@ function DashboardPage() {
     fetchFolders();
   }, []);
 
-  // FETCH NOTES FUNCTION
   const fetchNotes = async () => {
     setLoading(true);
     try {
@@ -44,12 +43,10 @@ function DashboardPage() {
       setNotes(res.data || []);
     } catch (err) {
       console.error("Failed to fetch notes:", err);
-      
-      // 🔥 THE BOUNCER: If the backend rejects this workspace ID (wrong user, deleted workspace, etc.)
       if (err.response && (err.response.status === 403 || err.response.status === 404)) {
         localStorage.removeItem("activeWorkspaceId");
         toast.error("Please select a workspace to continue.");
-        navigate("/workspaces"); // Kick them to the hub!
+        navigate("/workspaces"); 
       } else {
         toast.error("Failed to load notes");
       }
@@ -58,30 +55,24 @@ function DashboardPage() {
     }
   };
 
- // FETCH ON MOUNT & WHEN SWITCHING VIEWS
   useEffect(() => {
-    // 🔥 THE GATEKEEPER: Check if they even have a workspace selected first!
     const currentWorkspaceId = localStorage.getItem("activeWorkspaceId");
     if (!currentWorkspaceId) {
       navigate("/workspaces");
       return;
     }
-    
     fetchNotes();
   }, [isFavoritesActive, activeFolder, navigate]);
 
-  // LISTEN FOR WORKSPACE CHANGES (from Sidebar)
   useEffect(() => {
     const handleWorkspaceChange = () => {
       fetchNotes();
-      setQuery(""); // Clear search when switching workspaces
+      setQuery(""); 
     };
-
     window.addEventListener("workspaceChanged", handleWorkspaceChange);
     return () => window.removeEventListener("workspaceChanged", handleWorkspaceChange);
   }, []);
 
-  // GROUP AND FILTER NOTES
   const groupedNotes = useMemo(() => {
     const map = {};
 
@@ -89,13 +80,9 @@ function DashboardPage() {
       const folderId = note.folder?.id;
       const folderName = note.folder?.name || "Ungrouped";
 
-      // 1. Filter by Folder
       if (activeFolder && String(folderId) !== activeFolder) return;
-
-      // 2. Filter by Favorites
       if (isFavoritesActive && note.isFavorite !== true && note.favorite !== true) return;
       
-      // 3. Filter by Search Query
       if (
         query &&
         !note.title?.toLowerCase().includes(query.toLowerCase()) &&
@@ -111,7 +98,6 @@ function DashboardPage() {
     return map;
   }, [notes, activeFolder, isFavoritesActive, query]);
 
-  // DELETE NOTE
   const handleDelete = useCallback(async (note) => {
     try {
       await deleteNote(note.id);
@@ -135,8 +121,12 @@ function DashboardPage() {
   return (
     <div className="w-full max-w-6xl mx-auto px-8 py-10">
 
-      {/* PREMIUM HEADER */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+     
+      <div className="fixed top-8 right-8 z-[100] hidden md:block">
+        <ProfileMenu />
+      </div>
+
+      <div className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6 mt-2">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-text-primary dark:text-text-darkPrimary flex items-center gap-3">
             {isFavoritesActive && <Star size={32} className="text-yellow-500 fill-yellow-500" />}
@@ -159,7 +149,6 @@ function DashboardPage() {
         </motion.button>
       </div>
 
-      {/* SLEEK SEARCH BAR */}
       {notes.length > 0 && (
         <div className="relative mb-12 max-w-xl">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary opacity-70" />
@@ -173,7 +162,6 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* PREMIUM EMPTY STATE */}
       {!loading && notes.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[50vh] text-center max-w-md mx-auto">
           <div className="w-20 h-20 bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-3xl flex items-center justify-center mb-6 shadow-sm">
@@ -193,7 +181,6 @@ function DashboardPage() {
           </button>
         </div>
       ) : (
-        /* GROUPED NOTES STYLING */
         Object.keys(groupedNotes).length === 0 ? (
           <div className="text-center py-20 flex flex-col items-center">
              {isFavoritesActive ? (

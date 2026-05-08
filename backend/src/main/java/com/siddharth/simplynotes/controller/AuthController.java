@@ -10,18 +10,21 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
 
     private final UserRepository userRepository;
-    private final WorkspaceRepository workspaceRepository; // 🔥 NEW
+    private final WorkspaceRepository workspaceRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
     public AuthController(UserRepository userRepository,
-                          WorkspaceRepository workspaceRepository, // 🔥 NEW
+                          WorkspaceRepository workspaceRepository,
                           BCryptPasswordEncoder passwordEncoder,
                           JwtUtil jwtUtil) {
         this.userRepository = userRepository;
@@ -30,26 +33,21 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    // 🔐 REGISTER
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
-
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             return ResponseEntity.badRequest().body("Username already exists");
         }
 
-        // 1. Create the User
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         
-        // Save user first so they get an ID from the database
         User savedUser = userRepository.save(user);
 
-        // 🔥 2. Auto-create "Personal Workspace" for the new user
         Workspace defaultWorkspace = new Workspace();
         defaultWorkspace.setName("Personal Workspace");
-        defaultWorkspace.setIcon("home"); // You can map this to a Lucide icon in React
+        defaultWorkspace.setIcon("home");
         defaultWorkspace.setUser(savedUser);
         
         workspaceRepository.save(defaultWorkspace);
@@ -57,10 +55,8 @@ public class AuthController {
         return ResponseEntity.ok("User registered successfully with default workspace");
     }
 
-    // 🔐 LOGIN (Unchanged, just kept here for completeness)
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
-
         System.out.println("🔍 Login attempt for: " + request.getUsername());
 
         User user = userRepository.findByUsername(request.getUsername()).orElse(null);
@@ -80,9 +76,33 @@ public class AuthController {
         System.out.println("✅ PASSWORD MATCHED");
 
         String token = jwtUtil.generateToken(user.getUsername());
-
         System.out.println("🔥 TOKEN GENERATED: " + token);
 
         return ResponseEntity.ok(new AuthResponse(token));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Principal principal) {
+        if (principal == null) return ResponseEntity.status(401).body("Unauthorized");
+        
+        User user = userRepository.findByUsername(principal.getName()).orElse(null);
+        if (user == null) return ResponseEntity.status(404).body("User not found");
+        
+        return ResponseEntity.ok(user);
+    }
+
+    @PutMapping("/update")
+    public ResponseEntity<?> updateUser(Principal principal, @RequestBody Map<String, String> updates) {
+        if (principal == null) return ResponseEntity.status(401).body("Unauthorized");
+        
+        User user = userRepository.findByUsername(principal.getName()).orElse(null);
+        if (user == null) return ResponseEntity.badRequest().body("User not found");
+
+        if (updates.containsKey("firstName")) user.setFirstName(updates.get("firstName"));
+        if (updates.containsKey("lastName")) user.setLastName(updates.get("lastName"));
+        if (updates.containsKey("email")) user.setEmail(updates.get("email"));
+
+        userRepository.save(user);
+        return ResponseEntity.ok(user);
     }
 }

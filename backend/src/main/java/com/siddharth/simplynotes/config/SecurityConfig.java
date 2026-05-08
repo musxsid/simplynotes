@@ -26,7 +26,6 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
 
-            // ✅ ENABLE CORS
             .cors(cors -> {})
 
             .sessionManagement(session -> session
@@ -34,11 +33,11 @@ public class SecurityConfig {
             )
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 
-                // 🔥 NEW: Allow the world to see public notes if they have the secret token!
                 .requestMatchers("/api/notes/public/**").permitAll() 
                 
                 .anyRequest().authenticated()

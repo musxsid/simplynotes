@@ -20,11 +20,21 @@ import {
   Copy 
 } from "lucide-react";
 
-// 🔥 NEW: Imported generateAIContent
-import { getNoteById, updateNote, createNote, uploadImage, toggleShareNote, generateAIContent } from "../services/notesService";
+// Services
+import { 
+  getNoteById, 
+  updateNote, 
+  createNote, 
+  uploadImage, 
+  toggleShareNote, 
+  generateAIContent 
+} from "../services/notesService";
 import { getFolders } from "../services/folderService";
+
+// Components
 import AIPanel from "../components/ai/AIPanel";
 
+// Tiptap imports
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -39,23 +49,27 @@ function NoteEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  // State
   const [folders, setFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState("");
   const [note, setNote] = useState({ title: "", content: "" });
   
-  // 🔥 AI States
+  // Spark AI State
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResult, setAiResult] = useState("");
 
+  // Public Sharing State
   const [isPublic, setIsPublic] = useState(false);
   const [shareToken, setShareToken] = useState(null);
 
+  // Auto-save & Editor State
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [editorContent, setEditorContent] = useState("");
 
   const fileInputRef = useRef(null);
 
+  // Image Upload Logic
   const handleImageUpload = async (file) => {
     if (!file) return;
     const toastId = toast.loading("Uploading image...");
@@ -69,6 +83,7 @@ function NoteEditorPage() {
     }
   };
 
+  // TipTap Editor Initialization
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -101,6 +116,7 @@ function NoteEditorPage() {
     },
   });
 
+  // Fetch Folders
   useEffect(() => {
     const fetchFolders = async () => {
       try {
@@ -113,6 +129,7 @@ function NoteEditorPage() {
     fetchFolders();
   }, []);
 
+  // Fetch Note Data
   useEffect(() => {
     if (!id || id === "new") return;
 
@@ -121,7 +138,6 @@ function NoteEditorPage() {
         const res = await getNoteById(id);
         setNote({ title: res.data.title, content: res.data.content });
         setSelectedFolder(res.data.folder?.id?.toString() || ""); 
-        
         setIsPublic(res.data.isPublic || false);
         setShareToken(res.data.shareToken || null);
         
@@ -136,6 +152,7 @@ function NoteEditorPage() {
     fetchNote();
   }, [id, editor]);
 
+  // Save Logic
   const handleSave = useCallback(async (isManual = false) => {
     if (!editor) return;
     
@@ -166,23 +183,23 @@ function NoteEditorPage() {
     }
   }, [id, note.title, editor, selectedFolder, navigate]);
 
+  // Auto-Save Debounce
   useEffect(() => {
     if (id === "new") return;
     const timeoutId = setTimeout(() => { handleSave(false); }, 1500);
     return () => clearTimeout(timeoutId);
   }, [note.title, editorContent, selectedFolder, handleSave, id]);
 
+  // Sharing Handlers
   const handleToggleShare = async () => {
     if (id === "new") {
       toast.error("Please save your note first!");
       return;
     }
-
     try {
       const res = await toggleShareNote(id);
       setIsPublic(res.data.isPublic);
       setShareToken(res.data.shareToken);
-      
       if (res.data.isPublic) {
         const url = `${window.location.origin}/share/${res.data.shareToken}`;
         navigator.clipboard.writeText(url);
@@ -203,32 +220,45 @@ function NoteEditorPage() {
     }
   };
 
-  // ✨ NEW: AI Action Handler
+  // Spark AI: Handle Request
   const handleAIAction = async (actionType) => {
     if (!editor) return;
     
-    // Grab the highlighted text from TipTap
     const { from, to } = editor.state.selection;
+    if (from === to) {
+      toast.error("Highlight some text for Spark to analyze!");
+      return;
+    }
+
     const selectedText = editor.state.doc.textBetween(from, to, '\n');
 
     try {
       const res = await generateAIContent(actionType, selectedText);
       setAiResult(res.data.result);
     } catch (err) {
-      toast.error("Spark failed to generate a response. Is your API key set up?");
+      toast.error("Spark is unavailable. Check your API key.");
     }
   };
 
-  // ✨ NEW: AI Insert Handler
+  //  Spark AI: Insert Response 
   const handleAIInsert = () => {
     if (!editor || !aiResult) return;
     
-    // Paste Spark's result right where the cursor is, formatted nicely
-    editor.chain().focus().insertContent(`\n\n> **Spark's Response:**\n${aiResult}\n\n`).run();
+
+    editor.chain()
+      .focus()
+      .insertContent(`
+        <div style="border-left: 4px solid #6366f1; padding-left: 16px; margin: 20px 0; color: #4b5563; background-color: rgba(99, 102, 241, 0.05); padding-top: 12px; padding-bottom: 12px; border-radius: 0 12px 12px 0;">
+          <p style="font-size: 11px; font-weight: 800; color: #6366f1; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">✨ Spark AI Suggestion</p>
+          ${aiResult}
+        </div>
+        <p></p>
+      `, { parseContent: true })
+      .run();
     
-    // Close the panel and clear the result
     setAiOpen(false);
     setAiResult("");
+    toast.success("Spark's response added!");
   };
 
   if (!editor) return null;
@@ -237,7 +267,7 @@ function NoteEditorPage() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <input type="file" ref={fileInputRef} onChange={(e) => handleImageUpload(e.target.files[0])} accept="image/*" className="hidden" />
 
-      {/* HEADER */}
+      {/* HEADER BAR */}
       <div className="flex justify-between items-center mb-8">
         <button
           onClick={() => navigate("/dashboard")}
@@ -292,7 +322,6 @@ function NoteEditorPage() {
         </div>
       </div>
 
-      {/* TITLE */}
       <input
         value={note.title}
         onChange={(e) => setNote({ ...note, title: e.target.value })}
@@ -300,8 +329,7 @@ function NoteEditorPage() {
         className="text-5xl font-extrabold w-full mb-6 outline-none bg-transparent text-text-primary dark:text-text-darkPrimary placeholder:text-text-secondary/30"
       />
 
-      {/* FOLDER SELECTOR */}
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-6">
         <select
           value={selectedFolder || ""}
           onChange={(e) => setSelectedFolder(e.target.value)}
@@ -314,97 +342,61 @@ function NoteEditorPage() {
         </select>
       </div>
 
-      {/* FULL STATIC TOOLBAR */}
+      {/* TOOLBAR */}
       <div className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-t-2xl px-4 py-3 border-b flex flex-wrap items-center gap-4">
-        
-        {/* HISTORY */}
         <div className="flex items-center gap-1 pr-4 border-r border-border/50 dark:border-border-dark/50">
           <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary transition-colors" onClick={() => editor.chain().focus().undo().run()}><Undo2 size={18} /></button>
           <button className="p-1.5 rounded hover:bg-muted dark:hover:bg-muted-dark text-text-secondary transition-colors" onClick={() => editor.chain().focus().redo().run()}><Redo2 size={18} /></button>
         </div>
 
-        {/* FONT & HEADINGS */}
         <div className="flex items-center gap-2 pr-4 border-r border-border/50 dark:border-border-dark/50">
-          <select
-            className="bg-transparent text-sm font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary dark:hover:text-text-darkPrimary transition-colors"
-            onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
-          >
+          <select className="bg-transparent text-sm font-medium text-text-secondary outline-none cursor-pointer" onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}>
             <option>Arial</option>
             <option>Times New Roman</option>
           </select>
-
-          <select
-            className="bg-transparent text-sm font-medium text-text-secondary outline-none cursor-pointer hover:text-text-primary dark:hover:text-text-darkPrimary transition-colors"
-            onChange={(e) => {
+          <select className="bg-transparent text-sm font-medium text-text-secondary outline-none cursor-pointer" onChange={(e) => {
               const v = e.target.value;
               if (v === "p") editor.chain().focus().setParagraph().run();
               else editor.chain().focus().toggleHeading({ level: Number(v) }).run();
-            }}
-          >
+            }}>
             <option value="p">Normal</option>
             <option value="1">Heading 1</option>
             <option value="2">Heading 2</option>
           </select>
         </div>
 
-        {/* TEXT FORMATTING & COLOR */}
         <div className="flex items-center gap-1 pr-4 border-r border-border/50 dark:border-border-dark/50">
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive('bold') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={18} /></button>
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive('italic') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={18} /></button>
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive('underline') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon size={18} /></button>
-          
-          <div className="relative flex items-center ml-1">
-            <input
-              type="color"
-              className="w-6 h-6 p-0 border-0 rounded cursor-pointer bg-transparent"
-              onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-              title="Text Color"
-            />
-          </div>
+          <button className={`p-1.5 rounded ${editor.isActive('bold') ? 'bg-muted' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={18} /></button>
+          <button className={`p-1.5 rounded ${editor.isActive('italic') ? 'bg-muted' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={18} /></button>
+          <button className={`p-1.5 rounded ${editor.isActive('underline') ? 'bg-muted' : ''}`} onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon size={18} /></button>
+          <input type="color" className="w-6 h-6 p-0 border-0 rounded cursor-pointer bg-transparent" onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} />
         </div>
 
-        {/* ALIGNMENT */}
         <div className="flex items-center gap-1 pr-4 border-r border-border/50 dark:border-border-dark/50">
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().setTextAlign('left').run()}><AlignLeft size={18} /></button>
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().setTextAlign('center').run()}><AlignCenter size={18} /></button>
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().setTextAlign('right').run()}><AlignRight size={18} /></button>
+          <button className="p-1.5 rounded" onClick={() => editor.chain().focus().setTextAlign('left').run()}><AlignLeft size={18} /></button>
+          <button className="p-1.5 rounded" onClick={() => editor.chain().focus().setTextAlign('center').run()}><AlignCenter size={18} /></button>
+          <button className="p-1.5 rounded" onClick={() => editor.chain().focus().setTextAlign('right').run()}><AlignRight size={18} /></button>
         </div>
 
-        {/* LISTS & MEDIA */}
         <div className="flex items-center gap-1">
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive('bulletList') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={18} /></button>
-          <button className={`p-1.5 rounded transition-colors ${editor.isActive('orderedList') ? 'text-text-primary dark:text-text-darkPrimary bg-muted dark:bg-muted-dark' : 'text-text-secondary hover:bg-muted dark:hover:bg-muted-dark'}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={18} /></button>
-          
-          <div className="w-px h-5 bg-border/50 dark:bg-border-dark/50 mx-1"></div>
-
-          <button className="p-1.5 rounded text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition-colors" onClick={() => { const url = prompt("Enter URL"); if (url) editor.chain().focus().setLink({ href: url }).run(); }}><LinkIcon size={18} /></button>
-          
-          <button 
-            className="p-1.5 rounded text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary transition-colors" 
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImageIcon size={18} />
-          </button>
+          <button className="p-1.5 rounded" onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={18} /></button>
+          <button className="p-1.5 rounded" onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={18} /></button>
+          <button className="p-1.5 rounded" onClick={() => { const url = prompt("Enter URL"); if (url) editor.chain().focus().setLink({ href: url }).run(); }}><LinkIcon size={18} /></button>
+          <button className="p-1.5 rounded" onClick={() => fileInputRef.current?.click()}><ImageIcon size={18} /></button>
         </div>
 
-        {/* ✨ AI BUTTON */}
-        <button onClick={() => setAiOpen(true)} className="ml-auto flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium shadow-sm hover:shadow hover:opacity-90 transition-all">
+        <button onClick={() => setAiOpen(true)} className="ml-auto flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium shadow-sm hover:opacity-90 transition-all">
           ✨ AI Assist
         </button>
       </div>
 
-      {/* EDITOR CONTAINER */}
       <div className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-b-2xl border-t-0 min-h-[500px] shadow-sm pb-10">
         <EditorContent 
           editor={editor} 
-          className="
-            prose prose-zinc dark:prose-invert max-w-none p-8 outline-none 
-            prose-img:rounded-xl prose-img:shadow-md prose-img:max-w-full prose-img:max-h-[500px] prose-img:mx-auto prose-img:object-contain
-          " 
+          className="prose prose-zinc dark:prose-invert max-w-none p-8 outline-none prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto" 
         />
       </div>
 
-      {/* ✨ AI PANEL MOUNTED WITH PROPS */}
       <AIPanel 
         open={aiOpen} 
         onClose={() => { setAiOpen(false); setAiResult(""); }} 

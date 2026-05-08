@@ -10,7 +10,6 @@ function MoveToFolderModal({ open, onClose, note, onMoved }) {
   const [folders, setFolders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch folders whenever the modal opens
   useEffect(() => {
     if (open) {
       const fetchFolders = async () => {
@@ -32,8 +31,8 @@ function MoveToFolderModal({ open, onClose, note, onMoved }) {
     try {
       await moveNoteToFolder(note.id, folderId);
       toast.success("Note moved successfully!");
-      onMoved(); // Tell the Dashboard to refresh the notes!
-      onClose(); // Close the modal
+      onMoved(); 
+      onClose(); 
     } catch (err) {
       console.error(err);
       toast.error("Failed to move note");
@@ -86,7 +85,7 @@ function MoveToFolderModal({ open, onClose, note, onMoved }) {
               {/* Option to remove from folder (move to All Notes) */}
               <button
                 disabled={isLoading}
-                onClick={() => handleMove(null)} // null = 0 in our service
+                onClick={() => handleMove(null)} 
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted dark:hover:bg-muted-dark transition-colors text-left border border-transparent hover:border-border dark:hover:border-border-dark"
               >
                 <div className="w-10 h-10 rounded-lg bg-text-secondary/10 flex items-center justify-center text-text-secondary">

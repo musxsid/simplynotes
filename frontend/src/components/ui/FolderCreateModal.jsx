@@ -86,7 +86,7 @@ function FolderCreateModal({ open, onClose, onCreate }) {
         </div>
       </motion.div>
     </div>,
-    document.body // 🔥 THIS FIXES EVERYTHING
+    document.body 
   );
 }
 

@@ -2,7 +2,8 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   FileText, Star, Sparkles, Settings, LogOut,
   Moon, Sun, Plus, ChevronDown, Check,
-  Briefcase, Folder, LayoutGrid, Trash2
+  Briefcase, Folder, LayoutGrid, Trash2,
+  Calendar, Mail
 } from "lucide-react";
 import FolderCreateModal from "../ui/FolderCreateModal";
 import CreateWorkspaceModal from "../ui/CreateWorkspaceModal";
@@ -17,9 +18,7 @@ const Sidebar = () => {
   const location = useLocation();
   const dropdownRef = useRef(null);
   
-  // 🔥 State for our custom delete modal
   const [folderToDelete, setFolderToDelete] = useState(null);
-
   const ICON_SIZE = 20;
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
@@ -98,10 +97,7 @@ const Sidebar = () => {
   };
 
   useEffect(() => { getWorkspaces(); }, []);
-
-  useEffect(() => {
-    if (activeWorkspace) getFolders(activeWorkspace.id);
-  }, [activeWorkspace]);
+  useEffect(() => { if (activeWorkspace) getFolders(activeWorkspace.id); }, [activeWorkspace]);
 
   useEffect(() => {
     const syncWorkspace = () => {
@@ -111,7 +107,6 @@ const Sidebar = () => {
         if (match) setActiveWorkspace(match);
       }
     };
-
     window.addEventListener("workspaceChanged", syncWorkspace);
     return () => window.removeEventListener("workspaceChanged", syncWorkspace);
   }, [workspaces]);
@@ -130,30 +125,25 @@ const Sidebar = () => {
     }
   };
 
-  // 🔥 NEW: Opens the custom modal instead of browser popup
   const promptDeleteFolder = (e, folderId, folderName) => {
     e.stopPropagation();
     setFolderToDelete({ id: folderId, name: folderName });
   };
 
-  // 🔥 NEW: Actually executes the deletion when confirmed
   const executeDeleteFolder = async () => {
     if (!folderToDelete) return;
-    
     try {
       await deleteFolder(folderToDelete.id);
       toast.success("Folder deleted");
-      
       if (activeFolder === folderToDelete.id) {
         setActiveFolder(null);
         navigate("/dashboard");
       }
-      
       getFolders(activeWorkspace.id); 
     } catch (err) {
       toast.error("Failed to delete folder");
     } finally {
-      setFolderToDelete(null); // Close the modal
+      setFolderToDelete(null); 
     }
   };
 
@@ -173,8 +163,9 @@ const Sidebar = () => {
     }`;
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col justify-between px-5 py-8 bg-surface dark:bg-surface-dark border-r border-border dark:border-border-dark z-50">
-      <div>
+    <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col justify-between bg-surface dark:bg-surface-dark border-r border-border dark:border-border-dark z-50">
+      
+      <div className="px-5 pt-8 pb-2">
         <div className="flex items-center gap-3 px-2 mb-8">
           <div className="w-9 h-9 rounded-xl bg-accent dark:bg-accent-dark flex items-center justify-center shadow-lg shadow-accent/10">
             <FileText size={ICON_SIZE} className="text-white dark:text-background-dark" />
@@ -184,7 +175,7 @@ const Sidebar = () => {
           </span>
         </div>
 
-        <div className="relative mb-10" ref={dropdownRef}>
+        <div className="relative mb-6" ref={dropdownRef}>
           <button
             onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
             className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted dark:hover:bg-muted-dark transition group border border-transparent hover:border-border dark:hover:border-border-dark"
@@ -257,7 +248,10 @@ const Sidebar = () => {
             )}
           </AnimatePresence>
         </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto px-5 custom-scrollbar pb-4">
+        
         <div className="mb-8">
           <p className="text-[11px] font-bold text-text-secondary/60 mb-3 uppercase tracking-[0.15em] ml-2">Main</p>
           <div className="space-y-1.5">
@@ -272,6 +266,13 @@ const Sidebar = () => {
               <FileText size={ICON_SIZE} /> Notes
             </div>
             
+            <NavLink to="/calendar" className={navItemClass}>
+              <Calendar size={ICON_SIZE} /> Calendar
+            </NavLink>
+            <NavLink to="/mails" className={navItemClass}>
+              <Mail size={ICON_SIZE} /> Mails
+            </NavLink>
+
             <div
               onClick={() => { setActiveFolder(null); navigate("/dashboard?favorites=true"); }}
               className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition-all ${
@@ -301,7 +302,7 @@ const Sidebar = () => {
             </div>
             <button 
               onClick={() => setShowCreateFolderModal(true)} 
-              className="p-1.5 rounded-lg hover:bg-muted dark:hover:bg-muted-dark transition text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100"
+              className="p-1.5 rounded-lg hover:bg-muted dark:hover:bg-muted-dark transition text-text-secondary hover:text-text-primary"
             >
               <Plus size={16} />
             </button>
@@ -315,7 +316,7 @@ const Sidebar = () => {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                <div className="space-y-1.5">
                   <div
                     onClick={() => { setActiveFolder(null); navigate("/dashboard"); }}
                     className={`px-3 py-3 rounded-xl text-[15px] font-semibold cursor-pointer transition ${
@@ -342,7 +343,6 @@ const Sidebar = () => {
                         <span className="truncate">{f.name}</span>
                       </div>
                       
-                      {/* 🔥 CHANGED: Now calls promptDeleteFolder */}
                       <button
                         onClick={(e) => promptDeleteFolder(e, f.id, f.name)}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all flex-shrink-0"
@@ -357,29 +357,39 @@ const Sidebar = () => {
             )}
           </AnimatePresence>
         </div>
-
-        <div>
-          <p className="text-[11px] font-bold text-text-secondary/60 mb-3 uppercase tracking-[0.15em] ml-2">Explore</p>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-3 px-3 py-3 text-[15px] font-semibold text-text-secondary opacity-40 cursor-not-allowed">
-              <Sparkles size={ICON_SIZE} /> AI Assistant
-            </div>
-            <NavLink to="/settings" className={navItemClass}>
-              <Settings size={ICON_SIZE} /> Settings
-            </NavLink>
-          </div>
-        </div>
       </div>
 
-      <div className="space-y-3 pt-6 border-t border-border dark:border-border-dark">
-        <button onClick={() => setDarkMode(!darkMode)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-bold bg-muted dark:bg-muted-dark text-text-primary dark:text-text-darkPrimary transition hover:opacity-80">
-          {darkMode ? <Sun size={ICON_SIZE} /> : <Moon size={ICON_SIZE} />}
-          {darkMode ? "Light Mode" : "Dark Mode"}
-        </button>
+      <div className="px-5 pb-8 pt-4 border-t border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
+        
+        {/* AI Assistant Card */}
+        <NavLink 
+          to="/ai" 
+          className={({ isActive }) => `
+            flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-4 transition-all duration-300 group
+            ${isActive ? 'bg-indigo-500 text-white' : 'bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'}
+          `}
+        >
+          <Sparkles size={20} className="group-hover:rotate-12 transition-transform" />
+          <div className="flex flex-col">
+            <span className="text-[14px] font-bold">AI Assistant</span>
+            <span className="text-[11px] opacity-70">Generate & fix notes</span>
+          </div>
+        </NavLink>
 
-        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-bold text-red-500 hover:bg-red-500/10 transition">
-          <LogOut size={ICON_SIZE} /> Logout
-        </button>
+        <div className="space-y-1.5">
+          <NavLink to="/settings" className={navItemClass}>
+            <Settings size={ICON_SIZE} /> Settings
+          </NavLink>
+          
+          <button onClick={() => setDarkMode(!darkMode)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold text-text-secondary hover:bg-muted dark:hover:bg-muted-dark hover:text-text-primary dark:hover:text-text-darkPrimary transition">
+            {darkMode ? <Sun size={ICON_SIZE} /> : <Moon size={ICON_SIZE} />}
+            {darkMode ? "Light Mode" : "Dark Mode"}
+          </button>
+
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold text-red-500 hover:bg-red-500/10 transition">
+            <LogOut size={ICON_SIZE} /> Logout
+          </button>
+        </div>
       </div>
 
       <FolderCreateModal open={showCreateFolderModal} onClose={() => setShowCreateFolderModal(false)} onCreate={handleCreateFolder} />
@@ -393,7 +403,6 @@ const Sidebar = () => {
         }} 
       />
 
-      {/* 🔥 NEW: Premium Custom Delete Modal placed right here! */}
       <AnimatePresence>
         {folderToDelete && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">

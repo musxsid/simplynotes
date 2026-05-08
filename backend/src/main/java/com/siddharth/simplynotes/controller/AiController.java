@@ -17,7 +17,6 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class AiController {
 
-    // Pulls the key you just pasted in application.properties!
     @Value("${gemini.api.key}")
     private String geminiApiKey;
 
@@ -25,16 +24,11 @@ public class AiController {
 
     @PostMapping("/generate")
     public ResponseEntity<?> generateContent(@RequestBody Map<String, String> request) {
-        String action = request.get("action");   // e.g., "Summarize"
-        String context = request.get("context"); // The text from the user's note
+        String action = request.get("action");
+        String context = request.get("context");
 
-        // 1. Build the prompt instructions based on what button the user clicked
         String prompt = buildPrompt(action, context);
-
-        // 2. The official Gemini API Endpoint
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
-
-        // 3. Format the JSON exactly how Google expects it
+String url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;        // Construct Gemini Request Body
         Map<String, Object> textPart = new HashMap<>();
         textPart.put("text", prompt);
 
@@ -49,39 +43,43 @@ public class AiController {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            // 4. Send the request to Gemini!
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-            
-            // 5. Extract the actual text from Gemini's nested JSON response
-            Map<String, Object> body = response.getBody();
+            String generatedText = extractTextFromResponse(response.getBody());
+            return ResponseEntity.ok(Map.of("result", generatedText));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", "Spark is offline. Check backend logs."));
+        }
+    }
+
+    private String extractTextFromResponse(Map<String, Object> body) {
+        try {
             List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
             Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
             List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-            String generatedText = (String) parts.get(0).get("text");
-
-            // Return the clean text to React
-            return ResponseEntity.ok(Map.of("result", generatedText));
-            
+            return (String) parts.get(0).get("text");
         } catch (Exception e) {
-            System.err.println("Gemini API Error: " + e.getMessage());
-            return ResponseEntity.status(500).body(Map.of("error", "Spark is currently resting. Try again in a moment!"));
+            return "Error parsing AI response.";
         }
     }
-
-    // 🔥 This is the "System Prompt" engine. It tells the AI exactly how to behave.
-    private String buildPrompt(String action, String context) {
-        
-        // If the user didn't highlight any text, tell the AI to just generate something based on the title or a blank slate
-        if (context == null || context.trim().isEmpty()) {
-            context = "There is no text selected. Please provide a helpful generic response or template.";
-        }
-
-        return switch (action) {
-            case "Summarize" -> "You are an expert assistant. Summarize the following text into 3-5 concise, easy-to-read bullet points. Do not include introductory filler text:\n\n" + context;
-            case "Improve Writing" -> "You are an expert editor. Rewrite the following text to make it more professional, clear, and grammatically perfect. Keep the original meaning but elevate the tone. Output ONLY the rewritten text:\n\n" + context;
-            case "Brainstorm Ideas" -> "You are a creative brainstorming partner. Based on the following context, generate a numbered list of 5 creative, highly actionable ideas:\n\n" + context;
-            case "Format Notes" -> "You are a productivity expert. Take the following raw, messy notes and format them into a beautiful structure using Markdown headings, bold text, and bullet points where appropriate:\n\n" + context;
-            default -> "Respond helpfully to the following:\n\n" + context;
-        };
+private String buildPrompt(String action, String context) {
+    if (context == null || context.trim().isEmpty()) {
+        context = "No text selected.";
     }
+
+    String agentInstructions = 
+        " Return ONLY the raw HTML body. " +
+        "Use <h3> for subheadings, <p> for paragraphs, <b> for bolding, and <ul>/<li> for lists. " +
+        "CRITICAL: Do NOT use Markdown (no stars ***, no dashes). Do NOT wrap the response in ```html code fences. " +
+        "Format it like a professional document.";
+
+    return switch (action) {
+        case "Summarize" -> "Summarize the following into a clean structure with a heading and bullet points:" + agentInstructions + "\n\n" + context;
+        case "Improve Writing" -> "Rewrite this to be professional and clear. Use paragraphs and bold key terms:" + agentInstructions + "\n\n" + context;
+        case "Brainstorm Ideas" -> "Generate 5 ideas. Use <h3> for titles and <p> for descriptions:" + agentInstructions + "\n\n" + context;
+        case "Format Notes" -> "Transform these messy notes into a structured document with headings and lists:" + agentInstructions + "\n\n" + context;
+        default -> "Process this text and format it beautifully with HTML:" + agentInstructions + "\n\n" + context;
+    };
 }
+}
+    

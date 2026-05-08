@@ -5,14 +5,14 @@ import { MoreVertical, Star, FolderOpen, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import ConfirmModal from "../ui/ConfirmModal";
-import MoveToFolderModal from "../ui/MoveToFolderModal"; // 🔥 Import the new modal
+import MoveToFolderModal from "../ui/MoveToFolderModal"; 
 import { toggleFavoriteNote } from "../../services/notesService";
 
 function NoteCard({ note, onDelete }) {
   const navigate = useNavigate();
   
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showMoveModal, setShowMoveModal] = useState(false); // 🔥 State for Move Modal
+  const [showMoveModal, setShowMoveModal] = useState(false); 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const [isFavorite, setIsFavorite] = useState(note.isFavorite || note.favorite || false); 
@@ -24,7 +24,6 @@ function NoteCard({ note, onDelete }) {
     navigate(`/notes/${note.id}`);
   };
 
-  // ✅ FIX: Lock background when ANY modal is open
   useEffect(() => {
     if (showConfirm || showMoveModal) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "auto";
@@ -58,7 +57,6 @@ function NoteCard({ note, onDelete }) {
     }
   };
 
-  // 🔥 OPEN THE MODAL
   const handleMove = (e) => {
     e.stopPropagation();
     setIsMenuOpen(false);
@@ -113,7 +111,7 @@ function NoteCard({ note, onDelete }) {
                     {isFavorite ? "Remove Favorite" : "Add to Favorites"}
                   </button>
                   
-                  {/* 🔥 TRIGGER MOVE MODAL */}
+                  {/* TRIGGER MOVE MODAL */}
                   <button 
                     onClick={handleMove}
                     className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text-primary dark:text-text-darkPrimary hover:bg-muted dark:hover:bg-muted-dark transition-colors"
@@ -168,7 +166,6 @@ function NoteCard({ note, onDelete }) {
         message="This note will be permanently deleted. This action cannot be undone."
       />
 
-      {/* 🔥 NEW MOVE TO FOLDER MODAL */}
       <MoveToFolderModal
         open={showMoveModal}
         onClose={() => setShowMoveModal(false)}

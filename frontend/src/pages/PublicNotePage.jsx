@@ -60,7 +60,7 @@ function PublicNotePage() {
   return (
     <div className="min-h-screen flex flex-col items-center py-12 px-6">
       
-      {/* 🌟 Brand Header */}
+      {/*  Brand Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -79,7 +79,7 @@ function PublicNotePage() {
         </Link>
       </motion.div>
 
-      {/* 📄 The Note Content */}
+      {/*  The Note Content */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

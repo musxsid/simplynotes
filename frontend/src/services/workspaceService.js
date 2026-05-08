@@ -19,12 +19,11 @@ export const createWorkspace = (data) => {
   return axios.post(`${API}/workspaces`, data, getAuthHeaders());
 };
 
-// 🔥 NEW: Update an existing workspace (Name, Icon, Cover Image)
 export const updateWorkspace = (id, data) => {
   return axios.put(`${API}/workspaces/${id}`, data, getAuthHeaders());
 };
 
-// 🔥 NEW: Delete a workspace completely
+// Delete a workspace completely
 export const deleteWorkspace = (id) => {
   return axios.delete(`${API}/workspaces/${id}`, getAuthHeaders());
 };

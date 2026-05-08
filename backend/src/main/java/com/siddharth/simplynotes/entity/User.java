@@ -17,7 +17,10 @@ public class User {
 
     private String password;
 
-    // 🔥 NEW: A user can own multiple workspaces
+    private String firstName;
+    private String lastName;
+    private String email;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Workspace> workspaces;
@@ -34,7 +37,10 @@ public class User {
     public Long getId() { return id; }
     public String getUsername() { return username; }
     public String getPassword() { return password; }
-    public List<Workspace> getWorkspaces() { return workspaces; } // Added getter
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
+    public String getEmail() { return email; }
+    public List<Workspace> getWorkspaces() { return workspaces; }
     public List<Note> getNotes() { return notes; }
     public List<Folder> getFolders() { return folders; }
 
@@ -42,7 +48,10 @@ public class User {
     public void setId(Long id) { this.id = id; }
     public void setUsername(String username) { this.username = username; }
     public void setPassword(String password) { this.password = password; }
-    public void setWorkspaces(List<Workspace> workspaces) { this.workspaces = workspaces; } // Added setter
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setEmail(String email) { this.email = email; }
+    public void setWorkspaces(List<Workspace> workspaces) { this.workspaces = workspaces; }
     public void setNotes(List<Note> notes) { this.notes = notes; }
     public void setFolders(List<Folder> folders) { this.folders = folders; }
 }

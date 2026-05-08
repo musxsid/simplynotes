@@ -12,6 +12,5 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
     // Kept for fallback purposes
     List<Folder> findByUser(User user); 
     
-    // 🔥 NEW: Fetch folders by Workspace
     List<Folder> findByWorkspace(Workspace workspace); 
 }

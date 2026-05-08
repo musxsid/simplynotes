@@ -14,7 +14,6 @@ public class Workspace {
 
     private String name;
     
-    // For that premium UI feel (e.g., storing a lucide icon name or emoji)
     private String icon; 
 
     private String coverImage;

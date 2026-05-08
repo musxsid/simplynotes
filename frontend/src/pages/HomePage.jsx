@@ -32,7 +32,7 @@ function HomePage() {
       }
     `}
     >
-      {/* 🌌 Background Glow */}
+      {/*  Background Glow */}
       {darkMode && (
         <>
           <div className="absolute w-[500px] h-[500px] bg-blue-500/20 blur-[120px] top-[-150px] left-[-150px]" />
@@ -40,7 +40,7 @@ function HomePage() {
         </>
       )}
 
-      {/* 🔥 Navbar */}
+      {/*  Navbar */}
       <div className="flex justify-between items-center px-10 py-6 relative z-10">
         <h1 className="text-xl font-semibold">SimplyNotes</h1>
 
@@ -92,7 +92,7 @@ function HomePage() {
         </div>
       </div>
 
-      {/* 🚀 HERO */}
+      {/* HERO */}
       <motion.div
         variants={fadeUp}
         initial="hidden"

@@ -19,7 +19,6 @@ public class Folder {
     @JsonIgnore
     private User user;
 
-    // 🔥 NEW: Link folder to a specific workspace
     @ManyToOne
     @JoinColumn(name = "workspace_id")
     @JsonIgnore

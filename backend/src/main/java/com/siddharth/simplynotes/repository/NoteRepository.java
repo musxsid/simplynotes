@@ -10,12 +10,9 @@ import java.util.Optional;
 
 public interface NoteRepository extends JpaRepository<Note, Long> {
 
-    // Fallback for older notes
     List<Note> findByUser(User user);
     
-    // Fetch notes strictly by Workspace
     List<Note> findByWorkspace(Workspace workspace);
 
-    // 🔥 NEW: Fetch a public note by its unique share token
     Optional<Note> findByShareToken(String shareToken);
 }

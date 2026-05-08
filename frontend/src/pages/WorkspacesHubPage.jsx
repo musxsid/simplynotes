@@ -6,14 +6,16 @@ import toast from "react-hot-toast";
 
 import { getWorkspaces, deleteWorkspace } from "../services/workspaceService";
 import CreateWorkspaceModal from "../components/ui/CreateWorkspaceModal";
-import EditWorkspaceModal from "../components/ui/EditWorkspaceModal"; // 🔥 We will create this next
-import ConfirmModal from "../components/ui/ConfirmModal"; // Using your existing delete confirmation
+import EditWorkspaceModal from "../components/ui/EditWorkspaceModal"; 
+import ConfirmModal from "../components/ui/ConfirmModal"; 
+
+// 🔥 IMPORT ADDED HERE
+import ProfileMenu from "../components/ui/ProfileMenu";
 
 function WorkspacesHubPage() {
   const [workspaces, setWorkspaces] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   
-  // States for the new features
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [workspaceToEdit, setWorkspaceToEdit] = useState(null);
   const [workspaceToDelete, setWorkspaceToDelete] = useState(null);
@@ -32,7 +34,6 @@ function WorkspacesHubPage() {
 
   useEffect(() => { fetchWorkspaces(); }, []);
 
-  // Close dropdown if clicking outside
   useEffect(() => {
     const handleClickOutside = () => setOpenDropdownId(null);
     document.addEventListener("click", handleClickOutside);
@@ -46,7 +47,7 @@ function WorkspacesHubPage() {
   };
 
   const handlePinWorkspace = (e, id) => {
-    e.stopPropagation(); // Stop the card from opening
+    e.stopPropagation(); 
     localStorage.setItem("pinnedWorkspaceId", id);
     setPinnedId(id.toString());
     setOpenDropdownId(null);
@@ -67,7 +68,6 @@ function WorkspacesHubPage() {
       await deleteWorkspace(workspaceToDelete.id);
       toast.success("Workspace deleted");
       
-      // Cleanup if they deleted their pinned or active workspace
       if (localStorage.getItem("activeWorkspaceId") == workspaceToDelete.id) localStorage.removeItem("activeWorkspaceId");
       if (localStorage.getItem("pinnedWorkspaceId") == workspaceToDelete.id) {
         localStorage.removeItem("pinnedWorkspaceId");
@@ -88,8 +88,13 @@ function WorkspacesHubPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
-      <div className="flex items-center justify-between mb-10">
+    <div className="max-w-5xl mx-auto py-10 px-4 relative">
+      
+      <div className="fixed top-8 right-8 z-[100] hidden md:block">
+        <ProfileMenu />
+      </div>
+
+      <div className="flex items-center justify-between mb-10 mt-2">
         <div>
           <h1 className="text-3xl font-extrabold text-text-primary dark:text-text-darkPrimary mb-2">
             Your Workspaces
@@ -123,17 +128,14 @@ function WorkspacesHubPage() {
             key={ws.id}
             whileHover={{ y: -4 }}
             onClick={() => handleSelectWorkspace(ws)}
-            // 1️⃣ 🔥 REMOVED 'overflow-hidden' from here so the menu can drop down freely
             className="cursor-pointer h-64 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark shadow-sm hover:shadow-cardHover transition-all flex flex-col relative"
           >
-            {/* Pinned Badge */}
             {pinnedId == ws.id && (
               <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-md text-[10px] font-bold uppercase flex items-center gap-1 shadow-sm">
                 <Pin size={10} className="fill-white" /> Pinned
               </div>
             )}
 
-            {/* 2️⃣ 🔥 ADDED 'rounded-t-2xl overflow-hidden' specifically to the image container */}
             <div className="h-32 w-full bg-muted dark:bg-muted-dark relative rounded-t-2xl overflow-hidden">
               {ws.coverImage ? (
                 <img src={ws.coverImage} alt="cover" className="w-full h-full object-cover" />
@@ -149,11 +151,10 @@ function WorkspacesHubPage() {
                 {renderIcon(ws.icon)}
               </div>
               
-              {/* THREE DOT MENU */}
               <div className="absolute top-3 right-3">
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Don't trigger the card click
+                    e.stopPropagation(); 
                     setOpenDropdownId(openDropdownId === ws.id ? null : ws.id);
                   }}
                   className="p-1.5 rounded-lg text-text-secondary hover:bg-muted dark:hover:bg-muted-dark transition-colors"
@@ -161,7 +162,6 @@ function WorkspacesHubPage() {
                   <MoreVertical size={18} />
                 </button>
 
-                {/* Dropdown Menu */}
                 <AnimatePresence>
                   {openDropdownId === ws.id && (
                     <motion.div

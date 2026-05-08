@@ -72,9 +72,16 @@ export const signup = (data) => {
   return axios.post(`${API}/auth/register`, data);
 };
 
-// ⭐ UPLOAD IMAGE
+//  UPLOAD IMAGE
 export const uploadImage = (file) => {
   const formData = new FormData();
   formData.append("file", file);
   return axios.post(`${API}/upload/image`, formData, getAuthHeaders());
+};
+export const generateAIContent = (action, context) => {
+  const token = localStorage.getItem("token");
+  return axios.post("http://localhost:8080/api/ai/generate", 
+    { action, context }, 
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 };

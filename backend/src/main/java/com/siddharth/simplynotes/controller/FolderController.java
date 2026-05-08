@@ -37,7 +37,7 @@ public class FolderController {
         this.noteRepository = noteRepository;
     }
 
-    // 📂 GET ALL FOLDERS (Remains the same)
+    //  GET ALL FOLDERS (Remains the same)
     @GetMapping
     public ResponseEntity<?> getFolders(
             @RequestParam(required = false) Long workspaceId,
@@ -74,7 +74,7 @@ public class FolderController {
         return ResponseEntity.ok(folders);
     }
 
-    // ➕ CREATE FOLDER (Remains the same)
+    //  CREATE FOLDER (Remains the same)
     @PostMapping
     public ResponseEntity<?> createFolder(
             @RequestParam(required = false) Long workspaceId,
@@ -113,9 +113,9 @@ public class FolderController {
         return ResponseEntity.ok(saved);
     }
 
-    // ❌ DELETE FOLDER (Upgraded to handle nested notes safely)
+    // DELETE FOLDER 
     @DeleteMapping("/{id}")
-    @Transactional // 🔥 NEW: Required for safely modifying notes before deletion
+    @Transactional 
     public ResponseEntity<?> deleteFolder(
             @PathVariable Long id,
             Authentication authentication
@@ -135,7 +135,6 @@ public class FolderController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
-        // 🔥 NEW LOGIC: Safely "ungroup" all notes inside this folder so the database doesn't panic
         List<Note> notes = folder.getNotes();
         if (notes != null) {
             for (Note note : notes) {

@@ -104,9 +104,7 @@ function EditWorkspaceModal({ open, workspace, onClose, onUpdated }) {
               </div>
 
               <div className="flex justify-end gap-3 mt-4">
-                <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-text-secondary hover:bg-muted dark:hover:bg-muted-dark">Cancel</button>
-                {/* 🔥 FIXED BUTTON STYLING HERE */}
-                <button type="submit" disabled={isLoading || !name.trim()} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-black dark:bg-white text-white dark:text-black disabled:opacity-50 transition-opacity hover:opacity-90">
+                <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-text-secondary hover:bg-muted dark:hover:bg-muted-dark">Cancel</button>                <button type="submit" disabled={isLoading || !name.trim()} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-black dark:bg-white text-white dark:text-black disabled:opacity-50 transition-opacity hover:opacity-90">
                   {isLoading ? "Saving..." : <><Save size={16} /> Save Changes</>}
                 </button>
               </div>

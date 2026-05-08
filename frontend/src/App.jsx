@@ -12,7 +12,6 @@ import DashboardPage from "./pages/DashboardPage";
 import NoteEditorPage from "./pages/NoteEditorPage";
 import WorkspacesHubPage from "./pages/WorkspacesHubPage"; 
 
-// 🔥 CRITICAL: Make sure PublicNotePage is imported!
 import PublicNotePage from "./pages/PublicNotePage"; 
 
 const NO_SIDEBAR_ROUTES = ["/", "/login", "/signup"];
@@ -21,7 +20,6 @@ function AppLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 🔥 THE FIX: This tells React to HIDE the sidebar if the URL contains "/share"
   const hideSidebar = NO_SIDEBAR_ROUTES.includes(location.pathname) || location.pathname.startsWith('/share');
 
   if (hideSidebar) {
@@ -43,7 +41,6 @@ function AppLayout({ children }) {
 function App() {
   const location = useLocation();
   
-  // 🔥 THE FIX: Also hide the Ctrl+K search bar for public users!
   const isPublicRoute = location.pathname.startsWith('/share');
 
   return (
@@ -60,7 +57,6 @@ function App() {
             <Route path="/notes/:id" element={<ProtectedRoute><NoteEditorPage /></ProtectedRoute>} />
             <Route path="/workspaces" element={<ProtectedRoute><WorkspacesHubPage /></ProtectedRoute>} />
             
-            {/* 🔥 THE FIX: This registers the public page so it stops showing a blank screen */}
             <Route path="/share/:token" element={<PublicNotePage />} />
           </Routes>
         </AnimatePresence>

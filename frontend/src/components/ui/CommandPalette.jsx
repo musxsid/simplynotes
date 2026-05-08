@@ -31,7 +31,7 @@ function CommandPalette({ open, setOpen, commands, notes = [], onSelectNote }) {
     ...filteredNotes.map((n) => ({ type: "note", data: n })),
   ];
 
-  // ⌨️ KEYBOARD NAVIGATION
+  // KEYBOARD NAVIGATION
   useEffect(() => {
     if (!open) return;
 

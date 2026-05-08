@@ -37,19 +37,21 @@ public class NoteController {
         this.workspaceRepository = workspaceRepository;
     }
 
+    // DTO for clean folder info in notes
     public static class FolderDTO {
         public Long id;
         public String name;
         public FolderDTO(Long id, String name) { this.id = id; this.name = name; }
     }
 
+    // DTO for Note response to avoid exposing sensitive info and to include folder details
     public static class NoteDTO {
         public Long id;
         public String title;
         public String content;
         public Boolean isFavorite;
-        public Boolean isPublic;       // 🔥 NEW
-        public String shareToken;      // 🔥 NEW
+        public Boolean isPublic;
+        public String shareToken;
         public FolderDTO folder;
 
         public NoteDTO(Note note) {
@@ -57,8 +59,8 @@ public class NoteController {
             this.title = note.getTitle();
             this.content = note.getContent();
             this.isFavorite = note.getIsFavorite();
-            this.isPublic = note.getIsPublic();       // 🔥 NEW
-            this.shareToken = note.getShareToken();   // 🔥 NEW
+            this.isPublic = (note.getIsPublic() != null) ? note.getIsPublic() : false;
+            this.shareToken = note.getShareToken();
             if (note.getFolder() != null) {
                 this.folder = new FolderDTO(note.getFolder().getId(), note.getFolder().getName());
             }
@@ -67,17 +69,13 @@ public class NoteController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getNoteById(@PathVariable Long id, Authentication authentication) {
-        try {
-            if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
-            
-            Note note = noteRepository.findById(id).orElse(null);
-            if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
-            if (!note.getUser().getUsername().equals(authentication.getName())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        
+        Note note = noteRepository.findById(id).orElse(null);
+        if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
+        if (!note.getUser().getUsername().equals(authentication.getName())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
 
-            return ResponseEntity.ok(new NoteDTO(note));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server error");
-        }
+        return ResponseEntity.ok(new NoteDTO(note));
     }
 
     @GetMapping
@@ -91,14 +89,14 @@ public class NoteController {
         if (user == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
 
         List<Note> notes;
-
         if (workspaceId != null) {
             Workspace workspace = workspaceRepository.findById(workspaceId).orElse(null);
             if (workspace == null || !workspace.getUser().getId().equals(user.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid workspace");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid workspace access");
             }
             notes = noteRepository.findByWorkspace(workspace);
         } else {
+            // Default to first workspace if none specified
             List<Workspace> userWorkspaces = workspaceRepository.findByUser(user);
             if (!userWorkspaces.isEmpty()) {
                 notes = noteRepository.findByWorkspace(userWorkspaces.get(0));
@@ -107,8 +105,7 @@ public class NoteController {
             }
         }
         
-        List<NoteDTO> response = notes.stream().map(NoteDTO::new).collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(notes.stream().map(NoteDTO::new).collect(Collectors.toList()));
     }
 
     @PostMapping
@@ -132,9 +129,7 @@ public class NoteController {
             targetWorkspace = workspaceRepository.findById(workspaceId).orElse(null);
         } else {
             List<Workspace> userWorkspaces = workspaceRepository.findByUser(user);
-            if (!userWorkspaces.isEmpty()) {
-                targetWorkspace = userWorkspaces.get(0);
-            }
+            if (!userWorkspaces.isEmpty()) targetWorkspace = userWorkspaces.get(0);
         }
 
         if (targetWorkspace != null && targetWorkspace.getUser().getId().equals(user.getId())) {
@@ -180,80 +175,37 @@ public class NoteController {
     @PutMapping("/{id}/favorite")
     public ResponseEntity<?> toggleFavorite(@PathVariable Long id, Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
-        
         Note note = noteRepository.findById(id).orElse(null);
         if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
-        
-        if (!note.getUser().getUsername().equals(authentication.getName())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
-        }
+        if (!note.getUser().getUsername().equals(authentication.getName())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
 
-        Boolean currentStatus = note.getIsFavorite();
-        note.setIsFavorite(currentStatus == null ? true : !currentStatus);
-        
-        Note saved = noteRepository.save(note);
-        return ResponseEntity.ok(new NoteDTO(saved));
+        note.setIsFavorite(note.getIsFavorite() == null ? true : !note.getIsFavorite());
+        return ResponseEntity.ok(new NoteDTO(noteRepository.save(note)));
     }
 
-    @PutMapping("/{id}/folder/{folderId}")
-    public ResponseEntity<?> moveNoteToFolder(@PathVariable Long id, @PathVariable Long folderId, Authentication authentication) {
-        if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
-        
-        Note note = noteRepository.findById(id).orElse(null);
-        if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
-        
-        if (!note.getUser().getUsername().equals(authentication.getName())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
-        }
-
-        if (folderId == 0) {
-            note.setFolder(null);
-        } else {
-            Folder folder = folderRepository.findById(folderId).orElse(null);
-            if (folder == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Folder not found");
-            note.setFolder(folder);
-        }
-
-        Note saved = noteRepository.save(note);
-        return ResponseEntity.ok(new NoteDTO(saved));
-    }
-
-    // 🔥 NEW: Toggle Public Sharing Status
     @PutMapping("/{id}/share")
     public ResponseEntity<?> toggleShare(@PathVariable Long id, Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
-        
         Note note = noteRepository.findById(id).orElse(null);
         if (note == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found");
-        
-        if (!note.getUser().getUsername().equals(authentication.getName())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
-        }
+        if (!note.getUser().getUsername().equals(authentication.getName())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
 
-        // Toggle the boolean
-        Boolean currentStatus = note.getIsPublic();
-        boolean newStatus = (currentStatus == null) ? true : !currentStatus;
+        boolean newStatus = (note.getIsPublic() == null) ? true : !note.getIsPublic();
         note.setIsPublic(newStatus);
         
-        // Generate a unique token if it's being made public and doesn't have one yet
         if (newStatus && note.getShareToken() == null) {
             note.setShareToken(UUID.randomUUID().toString());
         }
 
-        Note saved = noteRepository.save(note);
-        return ResponseEntity.ok(new NoteDTO(saved));
+        return ResponseEntity.ok(new NoteDTO(noteRepository.save(note)));
     }
 
-    // 🔥 NEW: Public API to fetch a shared note (NO AUTH REQUIRED)
     @GetMapping("/public/{shareToken}")
     public ResponseEntity<?> getPublicNote(@PathVariable String shareToken) {
         Note note = noteRepository.findByShareToken(shareToken).orElse(null);
-        
-        // If it doesn't exist, or if the user turned sharing back off, return a 404
-        if (note == null || !note.getIsPublic()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Note not found or is no longer public.");
+        if (note == null || !Boolean.TRUE.equals(note.getIsPublic())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Public note not available");
         }
-        
         return ResponseEntity.ok(new NoteDTO(note));
     }
 }

@@ -32,7 +32,6 @@ public class Note {
     @Column(name = "is_favorite")
     private Boolean isFavorite = false;
 
-    // 🔥 NEW: Public Sharing Fields
     @Column(name = "is_public")
     private Boolean isPublic = false;
 
@@ -48,7 +47,6 @@ public class Note {
     public Workspace getWorkspace() { return workspace; }
     public Boolean getIsFavorite() { return isFavorite == null ? false : isFavorite; }
     
-    // 🔥 NEW: Getters for sharing
     public Boolean getIsPublic() { return isPublic == null ? false : isPublic; }
     public String getShareToken() { return shareToken; }
 
@@ -61,7 +59,6 @@ public class Note {
     public void setWorkspace(Workspace workspace) { this.workspace = workspace; }
     public void setIsFavorite(Boolean favorite) { this.isFavorite = favorite; }
     
-    // 🔥 NEW: Setters for sharing
     public void setIsPublic(Boolean isPublic) { this.isPublic = isPublic; }
     public void setShareToken(String shareToken) { this.shareToken = shareToken; }
 }

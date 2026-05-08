@@ -23,7 +23,7 @@ function LoginPage() {
       localStorage.setItem("token", res.data.token);
       toast.success("Welcome back");
       
-      // 🔥 PINNING LOGIC: Check if they have a pinned workspace
+      //  PINNING LOGIC: Check if they have a pinned workspace
       const pinnedWorkspaceId = localStorage.getItem("pinnedWorkspaceId");
       if (pinnedWorkspaceId) {
         localStorage.setItem("activeWorkspaceId", pinnedWorkspaceId);
